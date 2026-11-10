@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Se generan al ejecutar el código (no se suben a GitHub)
+data/
+outputs/
+
+# Sí se suben cuando estén listos:
+#   models/geoscene_cnn.pt   (modelo final)
+#   splits/indices.json      (particiones)
