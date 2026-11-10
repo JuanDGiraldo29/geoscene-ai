@@ -85,7 +85,7 @@ streamlit run interfaz/app.py
 ## Cómo trabajar con Git
 
 1. `main` siempre debe funcionar. Cada persona trabaja en su rama:
-   `feature/modelo`, `feature/evaluacion`, `feature/api`, `feature/interfaz`.
+   `feature/joseph`, `feature/johan`, `feature/mariana`, `feature/juanda`.
 2. Antes de subir: `python -m pytest`. Se sube con un pull request que revisa otra persona.
 3. Los cambios en `compartido/` o en `docs/CONTRATO.md` se avisan al grupo antes.
 4. No se suben `data/` ni `outputs/` (ya están en `.gitignore`).
