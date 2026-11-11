@@ -8,6 +8,7 @@ Es la CNN base del curso: dos bloques convolucionales y una parte final que
 clasifica. En el curso usaron nn.Linear sobre 28x28; aquí la entrada es
 3 canales (RGB) de 32x32 y la salida son 10 valores (uno por clase).
 """
+import torch
 from torch import nn
 
 from compartido.constantes import CLASES
@@ -15,24 +16,39 @@ from compartido.constantes import CLASES
 
 class GeoSceneCNN(nn.Module):
 
-    def __init__(self):
+    def __init__(self, canales=(64, 128), neuronas_ocultas=512, dropout=0.4):
         super().__init__()
 
-        # TODO 1: bloques convolucionales. Cada bloque suele ser:
-        #     nn.Conv2d(canales_entrada, canales_salida, kernel_size=3, padding=1),
-        #     nn.ReLU(),
-        #     nn.MaxPool2d(2)
-        #   Bloque 1: entra con 3 canales (RGB).   32x32 -> 16x16
-        #   Bloque 2: entra con los canales del bloque 1.   16x16 -> 8x8
-        self.convolucionales = None
+        # Bloque 1: 3 canales (RGB).   32x32 -> 16x16
+        # Bloque 2: 64 canales.        16x16 ->  8x8
+        c1, c2 = canales
+        self.convolucionales = nn.Sequential(
+            nn.Conv2d(3, c1, kernel_size=3, padding=1),
+            nn.BatchNorm2d(c1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(c1, c2, kernel_size=3, padding=1),
+            nn.BatchNorm2d(c2),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+        )
 
-        # TODO 2: parte final: nn.Flatten() y una o más nn.Linear.
-        #   Ojo: el tamaño de entrada de la primera Linear es
-        #   (canales del bloque 2) * 8 * 8. Debe terminar con len(CLASES) salidas.
-        self.clasificador = None
+        # Parte final: c2 * 8 * 8 -> oculta -> 10 clases
+        self.clasificador = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(c2 * 8 * 8, neuronas_ocultas),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(neuronas_ocultas, len(CLASES)),
+        )
 
     def forward(self, x):
-        # TODO 3: pasar x por las convolucionales y luego por el clasificador.
-        #   Devuelve los valores crudos (logits). NO apliques softmax aquí:
-        #   CrossEntropyLoss ya lo incluye.
-        raise NotImplementedError("TODO 3")
+        # Devuelve los valores crudos (logits). NO se aplica softmax aquí:
+        # CrossEntropyLoss ya lo incluye.
+        return self.clasificador(self.convolucionales(x))
+
+
+if __name__ == "__main__":
+    modelo = GeoSceneCNN()
+    salida = modelo(torch.zeros(4, 3, 32, 32))
+    print(salida.shape)  # torch.Size([4, 10])
