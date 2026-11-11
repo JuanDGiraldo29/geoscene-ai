@@ -4,25 +4,29 @@ Entregable: models/geoscene_cnn.pt (se sube a GitHub cuando sea el modelo final)
 
 Cómo se ejecuta:
     python -m modelo.entrenar
-
-Cambios respecto al script del curso (FashionMNIST):
-  1. Además de entrenar, se mide en VALIDACIÓN al final de cada época.
-  2. Se elige la mejor época con la validación (nunca con el test).
-  3. Se guarda el mejor modelo con guardar_checkpoint (compartido/contrato.py).
-  4. El test NO se toca en este archivo.
 """
+import os
 import random
 
+import matplotlib
+matplotlib.use("Agg")  # dibuja sin abrir ventanas: guarda la figura en un archivo
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 
-from compartido.constantes import RUTA_MODELO, SEED
+from compartido.constantes import CARPETA_SALIDAS, RUTA_MODELO, SEED
 from compartido.contrato import guardar_checkpoint
 from compartido.preprocesamiento import crear_transformacion
 from modelo.datos import cargar_eurosat, cargar_indices
 from modelo.red import GeoSceneCNN
+
+# Hiperparámetros: anótenlos, van en la ficha ejecutiva
+EPOCAS = 20
+TASA_APRENDIZAJE = 0.001
+TAMANO_LOTE = 64
+DECAIMIENTO_PESOS = 1e-4
 
 
 def fijar_semillas():
@@ -33,61 +37,128 @@ def fijar_semillas():
 
 
 def calcular_media_desviacion(cargador):
-    """Media y desviación por canal (R, G, B) calculadas SOLO con train.
+    """Media y desviación por canal (R, G, B) calculadas SOLO con train."""
+    suma = torch.zeros(3)
+    suma_cuadrados = torch.zeros(3)
+    total_pixeles = 0
 
-    TODO 1: recorrer el cargador (imágenes sin normalizar) y acumular
-            - la suma de los valores por canal   -> x.sum(dim=(0, 2, 3))
-            - la suma de los cuadrados           -> (x ** 2).sum(dim=(0, 2, 3))
-            - el número total de píxeles por canal (batch * alto * ancho)
-            Media = suma / n.   Desviación = raíz de (suma_cuadrados / n - media**2).
-            Devuelve dos listas de 3 números.
-    """
-    raise NotImplementedError("TODO 1")
+    for X, _ in cargador:
+        suma += X.sum(dim=(0, 2, 3))                 # suma por canal
+        suma_cuadrados += (X ** 2).sum(dim=(0, 2, 3))
+        total_pixeles += X.shape[0] * X.shape[2] * X.shape[3]
+
+    media = suma / total_pixeles
+    desviacion = (suma_cuadrados / total_pixeles - media ** 2).sqrt()
+    return media.tolist(), desviacion.tolist()
 
 
 def entrenar_una_epoca(modelo, cargador, funcion_perdida, optimizador):
-    """TODO 2: es la función train_epoch que ya hicieron en el curso
-    (model.train(), predicción, loss, zero_grad, backward, step).
-    Devuelve (pérdida_promedio, accuracy)."""
-    raise NotImplementedError("TODO 2")
+    """Una pasada completa por train, actualizando los pesos. Devuelve (pérdida, accuracy)."""
+    modelo.train()
+    perdida_total, aciertos, total = 0, 0, 0
+
+    for X, y in cargador:
+        prediccion = modelo(X)
+        perdida = funcion_perdida(prediccion, y)
+
+        optimizador.zero_grad()
+        perdida.backward()
+        optimizador.step()
+
+        perdida_total += perdida.item()
+        aciertos += (prediccion.argmax(1) == y).sum().item()
+        total += y.size(0)
+
+    return perdida_total / len(cargador), aciertos / total
 
 
 def evaluar_una_epoca(modelo, cargador, funcion_perdida):
-    """TODO 3: igual que la anterior pero SIN actualizar pesos:
-        - modelo.eval()
-        - dentro de `with torch.no_grad():`
-        - sin optimizador, sin backward
-    Devuelve (pérdida_promedio, accuracy)."""
-    raise NotImplementedError("TODO 3")
+    """Una pasada por validación SIN actualizar pesos. Devuelve (pérdida, accuracy)."""
+    modelo.eval()
+    perdida_total, aciertos, total = 0, 0, 0
+
+    with torch.no_grad():
+        for X, y in cargador:
+            prediccion = modelo(X)
+            perdida_total += funcion_perdida(prediccion, y).item()
+            aciertos += (prediccion.argmax(1) == y).sum().item()
+            total += y.size(0)
+
+    return perdida_total / len(cargador), aciertos / total
+
+
+def graficar(historial, mejor_epoca):
+    """Curvas de pérdida y accuracy: train vs validación."""
+    os.makedirs(CARPETA_SALIDAS, exist_ok=True)
+    epocas = range(1, len(historial["train_perdida"]) + 1)
+    figura, ejes = plt.subplots(1, 2, figsize=(10, 4))
+
+    for eje, metrica, titulo in [(ejes[0], "perdida", "Pérdida"), (ejes[1], "accuracy", "Accuracy")]:
+        eje.plot(epocas, historial[f"train_{metrica}"], label="train")
+        eje.plot(epocas, historial[f"val_{metrica}"], label="validación")
+        eje.axvline(mejor_epoca, linestyle="--", color="gray", label="época elegida")
+        eje.set_title(titulo)
+        eje.set_xlabel("Época")
+        eje.legend()
+
+    figura.tight_layout()
+    ruta = os.path.join(CARPETA_SALIDAS, "curvas_entrenamiento.png")
+    figura.savefig(ruta, dpi=120)
+    print(f"Gráfica guardada en {ruta}")
 
 
 def main():
     fijar_semillas()
     indices = cargar_indices()
 
-    # TODO 4: media y desviación de train
-    #   - dataset sin normalizar: cargar_eurosat(crear_transformacion())
-    #   - Subset(dataset, indices["train"]) -> DataLoader -> calcular_media_desviacion
-    media, desviacion = None, None
+    # Media y desviación de train (con imágenes SIN normalizar y SIN giros)
+    dataset_crudo = cargar_eurosat(crear_transformacion())
+    cargador_crudo = DataLoader(Subset(dataset_crudo, indices["train"]), batch_size=256)
+    media, desviacion = calcular_media_desviacion(cargador_crudo)
+    print("Media por canal:", [round(v, 4) for v in media])
+    print("Desviación por canal:", [round(v, 4) for v in desviacion])
 
-    # TODO 5: DataLoaders de train (shuffle=True) y validación,
-    #         esta vez con la transformación NORMALIZADA: crear_transformacion(media, desviacion)
-    cargador_train, cargador_val = None, None
+    # Train lleva giros aleatorios; validación NO (se evalúa con las imágenes tal cual)
+    dataset_train = cargar_eurosat(crear_transformacion(media, desviacion, aumentar=True))
+    dataset_val = cargar_eurosat(crear_transformacion(media, desviacion))
+    generador = torch.Generator().manual_seed(SEED)  # mezcla repetible en cada época
+    cargador_train = DataLoader(Subset(dataset_train, indices["train"]), batch_size=TAMANO_LOTE,
+                                shuffle=True, generator=generador)
+    cargador_val = DataLoader(Subset(dataset_val, indices["val"]), batch_size=TAMANO_LOTE)
 
-    # TODO 6: modelo = GeoSceneCNN(), funcion_perdida = nn.CrossEntropyLoss(),
-    #         optimizador = torch.optim.Adam(...)  (como en el curso)
-    modelo, funcion_perdida, optimizador = None, None, None
+    modelo = GeoSceneCNN()
+    funcion_perdida = nn.CrossEntropyLoss()
+    optimizador = torch.optim.Adam(modelo.parameters(), lr=TASA_APRENDIZAJE, weight_decay=DECAIMIENTO_PESOS)
 
-    # TODO 7: bucle de épocas. En cada una:
-    #     - entrenar_una_epoca(...)  y  evaluar_una_epoca(...) con validación
-    #     - guardar los números en listas (para las gráficas) y mostrarlos con print
-    #     - si el accuracy de VALIDACIÓN es el mejor hasta ahora, guardar el modelo:
-    #           guardar_checkpoint(RUTA_MODELO, modelo, media, desviacion, epoca=epoca)
-    #       (el umbral se calibra después, en modelo/evaluar.py)
-    raise NotImplementedError("TODO 4 a 7")
+    historial = {"train_perdida": [], "train_accuracy": [], "val_perdida": [], "val_accuracy": []}
+    mejor_accuracy, mejor_epoca = 0.0, 0
 
-    # TODO 8: gráficas de pérdida y accuracy (train vs validación) guardadas en outputs/.
-    #         Anoten la época elegida y los hiperparámetros: van en la ficha ejecutiva.
+    for epoca in range(1, EPOCAS + 1):
+        tp, ta = entrenar_una_epoca(modelo, cargador_train, funcion_perdida, optimizador)
+        vp, va = evaluar_una_epoca(modelo, cargador_val, funcion_perdida)
+
+        historial["train_perdida"].append(tp)
+        historial["train_accuracy"].append(ta)
+        historial["val_perdida"].append(vp)
+        historial["val_accuracy"].append(va)
+
+        marca = ""
+        if va > mejor_accuracy:  # el mejor modelo se elige con VALIDACIÓN
+            mejor_accuracy, mejor_epoca = va, epoca
+            guardar_checkpoint(
+                RUTA_MODELO, modelo, media, desviacion,
+                epoca=epoca, val_accuracy=va,
+                hiperparametros={"epocas": EPOCAS, "lr": TASA_APRENDIZAJE, "lote": TAMANO_LOTE,
+                                 "weight_decay": DECAIMIENTO_PESOS},
+            )
+            marca = "  <- mejor hasta ahora, guardado"
+
+        print(f"Época {epoca:2d} | train: pérdida={tp:.4f} acc={ta*100:.2f}% "
+              f"| val: pérdida={vp:.4f} acc={va*100:.2f}%{marca}")
+
+    print(f"\nMejor época: {mejor_epoca} (accuracy de validación: {mejor_accuracy*100:.2f}%)")
+    print(f"Modelo guardado en {RUTA_MODELO}")
+    graficar(historial, mejor_epoca)
 
 
 if __name__ == "__main__":
