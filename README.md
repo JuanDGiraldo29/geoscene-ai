@@ -97,3 +97,14 @@ streamlit run interfaz/app.py
 - [ ] Accuracy, macro F1, matriz de confusión, resultados por clase y tres errores
 - [ ] Regla de revisión justificada con validación
 - [ ] Ficha ejecutiva de máximo 3 páginas (incluye limitación, riesgo con mitigación, mejora y fuentes)
+
+## Reproducir, limitaciones y pendientes
+El proyecto se reproduce con seis pasos desde la carpeta raíz, y antes de la entrega quedan siete pendientes.
+Cómo reproducirlo.
+1.	pip install -r requirements.txt y python -m pytest.
+2.	python -m modelo.datos: crea las particiones, una sola vez.
+3.	python -m modelo.entrenar, con EPOCAS = 20.
+4.	python -m modelo.evaluar --split val: calibra el umbral.
+5.	python -m modelo.evaluar --split test: evaluación final, una sola vez.
+6.	uvicorn api.main:app --port 8000 y, en otra terminal, streamlit run interfaz/app.py.
+
