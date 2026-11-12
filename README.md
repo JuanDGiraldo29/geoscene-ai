@@ -98,8 +98,8 @@ streamlit run interfaz/app.py
 - [ ] Regla de revisión justificada con validación
 - [ ] Ficha ejecutiva de máximo 3 páginas (incluye limitación, riesgo con mitigación, mejora y fuentes)
 
-## Reproducir, limitaciones y pendientes
-El proyecto se reproduce con seis pasos desde la carpeta raíz, y antes de la entrega quedan siete pendientes.
+## Reproducir
+El proyecto se reproduce con seis pasos desde la carpeta raíz
 Cómo reproducirlo.
 1.	pip install -r requirements.txt y python -m pytest.
 2.	python -m modelo.datos: crea las particiones, una sola vez.
