@@ -13,7 +13,7 @@ import csv
 import os
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -222,7 +222,7 @@ class ModeloInfo(BaseModel):
     canales: int
     capas: int
     arquitectura: list[CapaModelo]
-    hiperparametros: dict[str, int | float] | None
+    hiperparametros: dict[str, Any] | None
     funcion_perdida: str
     optimizador: str
     plan_lr: str
