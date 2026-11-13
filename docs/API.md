@@ -49,7 +49,7 @@ Parámetros: `split=val|test` (por defecto `test`) y `limite=1..5000`.
 
 | Bloque | Contenido |
 |---|---|
-| `meta` | partición, nº de imágenes, hora con milisegundos, duración del cálculo, `fuente: calculado_en_vivo_sin_cache`, `parcial` si se usó `limite` |
+| `meta` | partición, nº de imágenes, hora con milisegundos, duración del cálculo, `fuente: calculado_en_vivo_sin_cache`, `parcial` si se usó `limite` y versión del esquema |
 | `modelo` | checkpoint, bytes, época, `val_accuracy`, parámetros totales y entrenables, MACs y FLOPs de una inferencia 32×32, forma de entrada, nº de capas y arquitectura por tensor, función de pérdida, optimizador, `plan_lr`, `tasa_aprendizaje`, hiperparámetros, dispositivo, torch, umbral, `objetivo_precision`, normalización |
 | `metricas` | pérdida (CrossEntropyLoss), accuracy (top-1), top-3, top-5, precisión/recall macro, F1 macro y ponderado, confianza media, nº de errores |
 | `por_clase` | precisión, recall, F1 y soporte de las 10 clases |
@@ -63,12 +63,15 @@ Parámetros: `split=val|test` (por defecto `test`) y `limite=1..5000`.
 | `particion` | tamaños de train/val/test y balance por clase |
 | `artefactos` | `outputs/*.png` y `metricas_test.json`: si existen, bytes y fecha |
 | `decisiones` | aceptadas, corregidas, tasa de corrección y última decisión |
+| `procedencia` | rutas, tamaños, fecha y SHA-256 de checkpoint e índices; fuentes declaradas de cada bloque; cálculo exacto |
 | `sistema` | uptime, Python, torch, device, hilos, tamaño del checkpoint |
 
 Los MACs/FLOPs se cuentan con ganchos sobre cada convolución y capa lineal durante
-una inferencia de prueba, no son un valor escrito a mano. La tasa de aprendizaje
-es constante (`Adam`, `lr = 1e-3`, 20 épocas) y no hay scheduler: el panel muestra
-una línea plana en lugar de una curva de decaimiento inventada.
+una inferencia de prueba, no son un valor escrito a mano. La pérdida, el
+optimizador, la tasa de aprendizaje, el umbral y los hiperparámetros se leen del
+checkpoint. Si un campo no está declarado allí, se toma de
+`compartido/constantes.py` y `procedencia.fuentes` indica exactamente cuál fue la
+fuente. El panel no inventa una curva de decaimiento: dibuja el plan declarado.
 
 Envía `Cache-Control: no-store`. **No lee `outputs/metricas_test.json`**: ese
 archivo es evidencia histórica; aquí se vuelve a inferir sobre las imágenes.
@@ -77,6 +80,18 @@ archivo es evidencia histórica; aquí se vuelve a inferir sobre las imágenes.
 curl -s "http://localhost:8000/reporte?split=test" | python -m json.tool
 curl -s "http://localhost:8000/reporte?split=val&limite=200" | python -m json.tool
 ```
+
+## Certificación
+
+`procedencia.checkpoint.sha256` y `procedencia.indices.sha256` se calculan sobre
+el contenido exacto de los archivos. Si cambia el checkpoint, las particiones o
+el orden de clases, la huella cambia y el reporte falla si las clases no
+coinciden con `compartido/constantes.py`.
+
+`procedencia.fuentes` indica el origen de cada bloque: checkpoint, constantes de
+entrenamiento, CSV de decisiones o runtime. El panel muestra la misma información
+en «Procedencia · Certificación de datos» y el sello «PROCEDENCIA OK»; Swagger
+expone el esquema `Procedencia` en `/openapi.json`.
 
 ## Orígenes y puertos
 

@@ -11,10 +11,12 @@ o el dataset, lanza SinRecursoError y la API responde 503 con el motivo.
 from __future__ import annotations
 
 import csv
+import hashlib
 import os
 import platform
 import time
 from datetime import datetime
+from functools import lru_cache
 
 import numpy as np
 import torch
@@ -26,7 +28,10 @@ from compartido.constantes import (
     CARPETA_DATOS,
     CARPETA_SALIDAS,
     CLASES,
+    FUNCION_PERDIDA,
     IMG_SIZE,
+    OPTIMIZADOR,
+    PLAN_LR,
     RUTA_INDICES,
     RUTA_MODELO,
 )
@@ -35,7 +40,7 @@ from compartido.preprocesamiento import crear_transformacion
 from modelo.datos import cargar_eurosat, cargar_indices
 from modelo.red import GeoSceneCNN
 
-VERSION_REPORTE = "1.3.0"
+VERSION_REPORTE = "1.4.0"
 MUESTRA_LATENCIA = 100      # imágenes que se cronometran una por una (modelo)
 MUESTRA_COMPLETA = 50       # imágenes que se cronometran con decodificación incluida
 MIN_ACEPTADAS = 30          # menos que esto y un porcentaje no es fiable
@@ -64,6 +69,27 @@ def _leer_csv(ruta: str) -> list[dict]:
         return list(csv.DictReader(archivo))
 
 
+@lru_cache(maxsize=16)
+def _sha256(ruta: str, _modificado_ns: int, _tamano: int) -> str:
+    resumen = hashlib.sha256()
+    with open(ruta, "rb") as archivo:
+        for bloque in iter(lambda: archivo.read(1024 * 1024), b""):
+            resumen.update(bloque)
+    return resumen.hexdigest()
+
+
+def _huella(ruta: str) -> dict:
+    if not os.path.exists(ruta):
+        return {"ruta": ruta, "bytes": 0, "sha256": "", "modificado": None}
+    estado = os.stat(ruta)
+    return {
+        "ruta": ruta,
+        "bytes": int(estado.st_size),
+        "sha256": _sha256(ruta, estado.st_mtime_ns, estado.st_size),
+        "modificado": datetime.fromtimestamp(estado.st_mtime).isoformat(timespec="seconds"),
+    }
+
+
 def _verificar_recursos() -> None:
     if not os.path.exists(RUTA_MODELO):
         raise SinRecursoError(
@@ -81,9 +107,13 @@ def _verificar_recursos() -> None:
 
 def _cargar_modelo():
     ckpt = leer_checkpoint(RUTA_MODELO)
+    if list(ckpt.get("clases", [])) != list(CLASES):
+        raise SinRecursoError(
+            "El orden de clases del checkpoint no coincide con compartido/constantes.py."
+        )
     modelo = GeoSceneCNN()
     modelo.load_state_dict(ckpt["state_dict"])
-    modelo.eval()  # sin esto el dropout daría métricas distintas en cada consulta
+    modelo.eval()
     return modelo, ckpt
 
 
@@ -229,6 +259,7 @@ def medir(split: str = "test", limite: int | None = None) -> dict:
 
     transformacion = crear_transformacion(ckpt["media"], ckpt["desviacion"])
     dataset = cargar_eurosat(transformacion)
+    n_dataset = len(dataset)
     cargador = DataLoader(Subset(dataset, indices), batch_size=128)
 
     probabilidades, reales = [], []
@@ -338,6 +369,46 @@ def medir(split: str = "test", limite: int | None = None) -> dict:
     ]
     macs = _contar_macs(modelo)
     hiperparametros = ckpt.get("hiperparametros") or {}
+    funcion_perdida = hiperparametros.get("funcion_perdida") or FUNCION_PERDIDA
+    optimizador = hiperparametros.get("optimizador") or OPTIMIZADOR
+    plan_lr = hiperparametros.get("plan_lr") or PLAN_LR
+    procedencia = {
+        "checkpoint": _huella(RUTA_MODELO),
+        "indices": _huella(RUTA_INDICES),
+        "dataset": {"ruta": CARPETA_DATOS, "imagenes": int(n_dataset)},
+        "salidas": {
+            "carpeta": CARPETA_SALIDAS,
+            "predicciones": os.path.join(CARPETA_SALIDAS, "predicciones.csv"),
+            "decisiones": os.path.join(CARPETA_SALIDAS, "decisiones.csv"),
+        },
+        "fuentes": {
+            "metricas": f"inferencia_en_vivo:{split}",
+            "modelo": RUTA_MODELO,
+            "hiperparametros": f"{RUTA_MODELO}#hiperparametros",
+            "funcion_perdida": (
+                f"{RUTA_MODELO}#hiperparametros.funcion_perdida"
+                if hiperparametros.get("funcion_perdida")
+                else "compartido/constantes.py"
+            ),
+            "optimizador": (
+                f"{RUTA_MODELO}#hiperparametros.optimizador"
+                if hiperparametros.get("optimizador")
+                else "compartido/constantes.py"
+            ),
+            "plan_lr": (
+                f"{RUTA_MODELO}#hiperparametros.plan_lr"
+                if hiperparametros.get("plan_lr")
+                else "compartido/constantes.py"
+            ),
+            "umbral": f"{RUTA_MODELO}#umbral",
+            "calibracion": "inferencia_en_vivo",
+            "latencia": "inferencia_en_vivo",
+            "decisiones": os.path.join(CARPETA_SALIDAS, "decisiones.csv"),
+            "artefactos": CARPETA_SALIDAS,
+            "sistema": "runtime",
+        },
+        "calculo": f"softmax_sobre_{len(real)}_imagenes_{split}",
+    }
 
     return {
         "meta": {
@@ -363,9 +434,9 @@ def medir(split: str = "test", limite: int | None = None) -> dict:
             "capas": len(arquitectura),
             "arquitectura": arquitectura,
             "hiperparametros": ckpt.get("hiperparametros"),
-            "funcion_perdida": "CrossEntropyLoss",
-            "optimizador": "Adam",
-            "plan_lr": "constante (sin scheduler)",
+            "funcion_perdida": funcion_perdida,
+            "optimizador": optimizador,
+            "plan_lr": plan_lr,
             "tasa_aprendizaje": hiperparametros.get("lr"),
             "device": "cuda" if torch.cuda.is_available() else "cpu",
             "torch": torch.__version__,
@@ -412,6 +483,7 @@ def medir(split: str = "test", limite: int | None = None) -> dict:
         },
         "artefactos": _artefactos(),
         "decisiones": _decisiones_humanas(),
+        "procedencia": procedencia,
         "sistema": {
             "uptime_s": round(time.monotonic() - _INICIO, 1),
             "python": platform.python_version(),

@@ -16,7 +16,14 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 
-from compartido.constantes import CARPETA_SALIDAS, RUTA_MODELO, SEED
+from compartido.constantes import (
+    CARPETA_SALIDAS,
+    FUNCION_PERDIDA,
+    OPTIMIZADOR,
+    PLAN_LR,
+    RUTA_MODELO,
+    SEED,
+)
 from compartido.contrato import guardar_checkpoint
 from compartido.preprocesamiento import crear_transformacion
 from modelo.datos import cargar_eurosat, cargar_indices
@@ -149,7 +156,10 @@ def main():
                 RUTA_MODELO, modelo, media, desviacion,
                 epoca=epoca, val_accuracy=va,
                 hiperparametros={"epocas": EPOCAS, "lr": TASA_APRENDIZAJE, "lote": TAMANO_LOTE,
-                                 "weight_decay": DECAIMIENTO_PESOS},
+                                 "weight_decay": DECAIMIENTO_PESOS,
+                                 "optimizador": OPTIMIZADOR,
+                                 "funcion_perdida": FUNCION_PERDIDA,
+                                 "plan_lr": PLAN_LR},
             )
             marca = "  <- mejor hasta ahora, guardado"
 

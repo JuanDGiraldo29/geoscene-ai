@@ -113,6 +113,11 @@ a{color:var(--gs-ok)}
   border-color:rgba(46,230,168,.6);color:var(--gs-ok)}
 [data-testid="stFileUploader"] section{border:1px dashed var(--gs-line2) !important;
   background:rgba(8,13,20,.6) !important;border-radius:0 !important}
+[data-testid="stImage"] img{border:1px solid var(--gs-line2);image-rendering:pixelated}
+[data-testid="stRadio"] [role="radiogroup"] label{border:1px solid var(--gs-line2);
+  padding:6px 10px;margin-right:6px}
+[data-baseweb="select"] > div{border-radius:0 !important;border-color:var(--gs-line2) !important;
+  background:rgba(8,13,20,.6) !important}
 [data-testid="stMetric"]{border:1px solid var(--gs-line2);
   background:linear-gradient(180deg,rgba(20,32,44,.35),transparent);padding:12px 14px}
 [data-testid="stMetricLabel"]{color:var(--gs-tenue);font-size:9px;letter-spacing:.16em;
@@ -152,6 +157,7 @@ def cabecera(modo, n_clases, api_url):
     <span class="gs-chip">{escape(modo)}</span>
     <span class="gs-chip">{int(n_clases)} CLASES</span>
     <a class="gs-link" href="{escape(api_url)}/panel" target="_blank">PANEL OPERATIVO ↗</a>
+    <a class="gs-link" href="{escape(api_url)}/panel#procedencia" target="_blank">AUDITORÍA ↗</a>
   </div>
 </div>
 """
@@ -162,7 +168,7 @@ def panel_lateral(api_url, modo, n_clases):
     return f"""
 <div class="gs-marca" style="margin-bottom:14px">
   <span class="gs-led"></span>
-  <div><b>GEOSCENE AI</b><small>OPS · v1.3</small></div>
+  <div><b>GEOSCENE AI</b><small>OPS · v1.4</small></div>
 </div>
 <div class="gs-side-row"><span>API</span><b>{host}</b></div>
 <div class="gs-side-row"><span>MODO</span><b>{escape(modo)}</b></div>
@@ -171,6 +177,7 @@ def panel_lateral(api_url, modo, n_clases):
 <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
   <a class="gs-link" href="{escape(api_url)}/panel" target="_blank">PANEL OPERATIVO ↗</a>
   <a class="gs-link" href="{escape(api_url)}/docs" target="_blank">SWAGGER UI ↗</a>
+  <a class="gs-link" href="{escape(api_url)}/panel#procedencia" target="_blank">AUDITORÍA ↗</a>
 </div>
 """
 
@@ -215,6 +222,16 @@ def esqueleto_decision():
     <span class="gs-skel gs-skel-value" style="width:90%"></span>
     <span class="gs-skel gs-skel-value" style="width:90%"></span>
   </div>
+</div>
+"""
+
+
+def tarjeta_espera():
+    return """
+<div class="gs-card">
+  <span class="gs-label">LISTO PARA CLASIFICAR</span>
+  <div class="gs-sub">Pulsa <b>Clasificar imagen</b> para obtener el top-3 y el umbral de revisión.</div>
+  <div class="gs-nota">La imagen ya está cargada. La inferencia se ejecuta en la API, no en el navegador.</div>
 </div>
 """
 

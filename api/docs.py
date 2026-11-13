@@ -23,11 +23,13 @@ PAGINA_DOCS = """<!doctype html>
 </head>
 <body>
 <div class="barra">
-  <b>GEOSCENE AI · API 1.3.0</b>
+  <b>GEOSCENE AI · API 1.4.0</b>
   <span class="sep">|</span>
   <a href="/openapi.json">openapi.json</a>
   <span class="sep">|</span>
   <a href="/panel">Panel en vivo</a>
+  <span class="sep">|</span>
+  <a href="/panel#procedencia">Auditoría</a>
 </div>
 <div id="swagger-ui"></div>
 <script src="/estaticos/swagger-ui-bundle.js"></script>

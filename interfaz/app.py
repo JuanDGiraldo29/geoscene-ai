@@ -1,3 +1,5 @@
+import time
+
 import streamlit as st
 
 import cliente
@@ -7,6 +9,8 @@ st.set_page_config(page_title="GeoScene AI", page_icon="🛰️", layout="wide",
                    initial_sidebar_state="expanded")
 
 ui.inyectar()
+
+MINIMO_ESQUELETO = 0.55
 
 
 @st.cache_data(ttl=30)
@@ -26,6 +30,12 @@ def limpiar_resultados():
 def clasificar_otra():
     limpiar_resultados()
     st.session_state.clave_subida += 1
+
+
+def pausa_esqueleto(inicio, minimo=MINIMO_ESQUELETO):
+    restante = minimo - (time.monotonic() - inicio)
+    if restante > 0:
+        time.sleep(restante)
 
 
 try:
@@ -72,16 +82,31 @@ if huella != st.session_state.huella:
 st.session_state.imagen = archivo.getvalue()
 
 if st.session_state.prediccion is None:
-    if st.button("Clasificar imagen", type="primary"):
-        hueco = st.empty()
-        hueco.markdown(ui.esqueleto_prediccion(), unsafe_allow_html=True)
-        try:
-            st.session_state.prediccion = cliente.llamar_api(
-                "POST", "/predict", files={"file": (archivo.name, st.session_state.imagen)})
-        except cliente.ErrorAPI as error:
-            st.error(str(error))
-            st.stop()
-        st.rerun()
+    columna_imagen, columna_resultado = st.columns([1, 2])
+
+    with columna_imagen:
+        st.image(st.session_state.imagen, caption=archivo.name, width=250)
+
+    with columna_resultado:
+        if st.button("Clasificar imagen", type="primary"):
+            hueco = st.empty()
+            inicio = time.monotonic()
+            hueco.markdown(ui.esqueleto_prediccion(), unsafe_allow_html=True)
+            time.sleep(0.12)
+            try:
+                prediccion = cliente.llamar_api(
+                    "POST", "/predict",
+                    files={"file": (archivo.name, st.session_state.imagen)})
+            except cliente.ErrorAPI as error:
+                hueco.empty()
+                st.error(str(error))
+                st.stop()
+            pausa_esqueleto(inicio)
+            st.session_state.prediccion = prediccion
+            st.rerun()
+        else:
+            st.markdown(ui.tarjeta_espera(), unsafe_allow_html=True)
+
     st.stop()
 
 pred = st.session_state.prediccion
@@ -108,13 +133,18 @@ if st.session_state.decision is None:
 
     if st.button("Registrar decisión", type="primary"):
         hueco = st.empty()
+        inicio = time.monotonic()
         hueco.markdown(ui.esqueleto_decision(), unsafe_allow_html=True)
+        time.sleep(0.12)
         try:
-            st.session_state.decision = cliente.llamar_api("POST", "/decision", json={
+            decision = cliente.llamar_api("POST", "/decision", json={
                 "id_prediccion": pred["id_prediccion"], "categoria_humana": categoria_humana})
         except cliente.ErrorAPI as error:
+            hueco.empty()
             st.error(str(error))
             st.stop()
+        pausa_esqueleto(inicio)
+        st.session_state.decision = decision
         st.rerun()
 else:
     decision = st.session_state.decision

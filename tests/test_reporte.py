@@ -3,6 +3,8 @@
 No recorren el dataset: la prueba de 503 sustituye la medición por un fallo
 controlado, para que la suite siga siendo rápida y no dependa de data/.
 """
+import hashlib
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -46,3 +48,40 @@ def test_swagger_se_sirve_con_assets_locales(cliente):
     assert "cdn.jsdelivr" not in respuesta.text  # funciona sin internet
     assert cliente.get("/estaticos/swagger-ui.css").status_code == 200
     assert cliente.get("/redoc").status_code == 404  # una sola interfaz de documentación
+
+
+def test_openapi_declara_procedencia_y_rutas(cliente):
+    esquema = cliente.get("/openapi.json").json()
+    assert "/reporte" in esquema["paths"]
+    assert "/predict" in esquema["paths"]
+    assert "/decision" in esquema["paths"]
+    assert "Procedencia" in esquema["components"]["schemas"]
+    assert "procedencia" in esquema["components"]["schemas"]["Reporte"]["properties"]
+
+
+def test_openapi_no_se_cachea(cliente):
+    respuesta = cliente.get("/openapi.json")
+    assert respuesta.headers["cache-control"] == "no-store"
+
+
+def test_el_panel_expone_la_seccion_de_procedencia():
+    assert 'id="procedencia"' in PAGINA
+    assert 'id="sello"' in PAGINA
+    assert "PROCEDENCIA · CERTIFICACIÓN DE DATOS" in PAGINA
+    assert "procedenciaContenido" in PAGINA
+
+
+def test_el_panel_incluye_revelado_y_esqueletos():
+    assert "IntersectionObserver" in PAGINA
+    assert "MINIMO_ESQUELETO" in PAGINA
+    assert "procedenciaContenido" in PAGINA
+
+
+def test_la_huella_es_sha256_del_contenido(tmp_path):
+    from api.reporte import _huella
+
+    ruta = tmp_path / "evidencia.bin"
+    ruta.write_bytes(b"geoscene")
+    huella = _huella(str(ruta))
+    assert huella["sha256"] == hashlib.sha256(b"geoscene").hexdigest()
+    assert huella["bytes"] == 8

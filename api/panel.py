@@ -17,6 +17,7 @@ PAGINA = """<!doctype html>
     --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
   body{margin:0;background:
       radial-gradient(1200px 600px at 80% -10%,rgba(46,230,168,.07),transparent 60%),
       linear-gradient(var(--line) 1px,transparent 1px) 0 0/100% 48px,
@@ -24,7 +25,24 @@ PAGINA = """<!doctype html>
       var(--bg);
     color:var(--fg);font-family:var(--mono);font-size:13px;min-height:100vh}
   header{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;
-    padding:18px 26px;border-bottom:1px solid var(--line2);background:rgba(4,7,12,.85)}
+    padding:18px 26px;border-bottom:1px solid var(--line2);background:rgba(4,7,12,.88);
+    position:sticky;top:0;z-index:10;backdrop-filter:blur(10px)}
+  .carga{position:fixed;top:0;left:0;height:2px;width:0;background:var(--ok);z-index:20;
+    box-shadow:0 0 10px var(--ok);opacity:0;transition:opacity .2s}
+  .carga.on{opacity:1;animation:cargando 1.2s ease-in-out infinite}
+  @keyframes cargando{0%{width:0}65%{width:88%}100%{width:100%}}
+  .revelar{opacity:0;transform:translateY(16px);position:relative;overflow:hidden;
+    transition:opacity .62s cubic-bezier(.2,.7,.2,1),transform .62s cubic-bezier(.2,.7,.2,1)}
+  .revelar::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;
+    background:linear-gradient(90deg,transparent,rgba(46,230,168,.06),transparent);
+    transform:translateX(-100%)}
+  .revelar.visible{opacity:1;transform:none}
+  .revelar.visible::after{animation:barrido-revelado .75s ease-out}
+  @keyframes barrido-revelado{0%{opacity:.65;transform:translateX(-100%)}
+    55%{opacity:.18}100%{opacity:0;transform:translateX(100%)}}
+  .fresco{animation:aparecer .5s ease-out}
+  @keyframes aparecer{from{opacity:.55}to{opacity:1}}
+  section{scroll-margin-top:78px}
   .marca{display:flex;align-items:center;gap:12px}
   .led{width:10px;height:10px;border-radius:50%;background:var(--bad);box-shadow:0 0 12px var(--bad)}
   .led.ok{background:var(--ok);box-shadow:0 0 12px var(--ok)}
@@ -40,7 +58,13 @@ PAGINA = """<!doctype html>
   .lr{width:100%;height:54px;display:block;margin-top:8px}
   .etiqueta{display:block;color:var(--tenue);font-size:9px;letter-spacing:.16em;margin-bottom:4px}
   .split button:disabled{opacity:.4;cursor:progress}
-  @media (prefers-reduced-motion:reduce){.esqueleto{animation:none;background:#0e1721}}
+  @media (prefers-reduced-motion:reduce){
+    .esqueleto{animation:none;background:#0e1721}
+    .revelar{opacity:1;transform:none;transition:none}
+    .revelar::after{display:none}
+    .carga.on,.fresco{animation:none}
+    html{scroll-behavior:auto}
+  }
   h1{margin:0;font-size:16px;letter-spacing:.22em;font-weight:600}
   .marca p{margin:3px 0 0;color:var(--tenue);font-size:10px;letter-spacing:.18em}
   .controles{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
@@ -50,6 +74,10 @@ PAGINA = """<!doctype html>
   .split button.on{background:rgba(46,230,168,.12);color:var(--ok)}
   .enlace{color:var(--ok);text-decoration:none;font-size:10px;letter-spacing:.14em;
     border:1px solid rgba(46,230,168,.45);padding:9px 12px}
+  .sello{font-size:9px;letter-spacing:.12em;color:var(--tenue);border:1px solid var(--line2);
+    padding:6px 9px;white-space:nowrap}
+  .sello.ok{color:var(--ok);border-color:rgba(46,230,168,.45);background:rgba(46,230,168,.08)}
+  .sello.bad{color:var(--bad);border-color:rgba(255,92,92,.45);background:rgba(255,92,92,.08)}
   .reloj{text-align:right}
   .reloj span{font-size:18px;letter-spacing:.08em}
   .reloj small{display:block;color:var(--tenue);font-size:9px;letter-spacing:.2em}
@@ -96,6 +124,12 @@ PAGINA = """<!doctype html>
   table.datos{width:100%;border-collapse:collapse;font-size:11px}
   table.datos td{padding:5px 0;border-bottom:1px solid rgba(29,47,63,.4)}
   table.datos td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  table.proc{width:100%;border-collapse:collapse;font-size:11px}
+  table.proc th{text-align:left;color:var(--tenue);font-size:9px;letter-spacing:.12em;
+    font-weight:400;padding:6px 8px;border-bottom:1px solid var(--line2)}
+  table.proc td{padding:7px 8px;border-bottom:1px solid rgba(29,47,63,.4);vertical-align:top}
+  table.proc td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.proc code{font-size:10px}
   .flujo{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin-bottom:16px}
   .caja{border:1px solid var(--line2);padding:9px 12px;min-width:120px;background:rgba(20,32,44,.25)}
   .caja b{display:block;font-size:10px;letter-spacing:.08em;font-weight:600}
@@ -115,6 +149,7 @@ PAGINA = """<!doctype html>
 </style>
 </head>
 <body>
+<div id="carga" class="carga"></div>
 <header>
   <div class="marca">
     <span class="led" id="led"></span>
@@ -124,6 +159,7 @@ PAGINA = """<!doctype html>
     </div>
   </div>
   <div class="controles">
+    <span class="sello" id="sello">SIN VERIFICAR</span>
     <a class="enlace" href="/docs">SWAGGER ↗</a>
     <div class="split">
       <button data-split="val">VALIDACIÓN</button>
@@ -220,6 +256,11 @@ PAGINA = """<!doctype html>
     </div>
   </section>
 
+  <section class="panel" id="procedencia">
+    <h2>PROCEDENCIA · CERTIFICACIÓN DE DATOS</h2>
+    <div id="procedenciaContenido"><p class="vacio">verificando huellas…</p></div>
+  </section>
+
   <section class="panel">
     <h2>MAPA DE CONEXIONES · QUIÉN HABLA CON QUIÉN</h2>
     <div class="flujo">
@@ -231,6 +272,7 @@ PAGINA = """<!doctype html>
       <span class="flecha">+</span>
       <div class="caja"><b>DATASET</b><small>splits/indices.json + data/</small></div>
     </div>
+    <div class="scroll">
     <table class="mapa">
       <thead><tr><th>ORIGEN</th><th>VERBO</th><th>RUTA</th><th>DESTINO / EFECTO</th><th>CUÁNDO</th></tr></thead>
       <tbody>
@@ -243,6 +285,7 @@ PAGINA = """<!doctype html>
         <tr><td>Docente</td><td><span class="verbo get">GET</span></td><td><code>/docs</code>, <code>/openapi.json</code></td><td>contrato navegable y ejecutable</td><td>al revisar</td></tr>
       </tbody>
     </table>
+    </div>
     <p class="nota">La interfaz nunca importa el modelo: solo HTTP + JSON. El checkpoint y el dataset solo los tocan la API y el panel (lectura). El test se mide, no se usa para ajustar hiperparámetros.</p>
   </section>
 </main>
@@ -250,7 +293,8 @@ PAGINA = """<!doctype html>
 <footer>
   <span id="medido">ESPERANDO MEDICIÓN…</span>
   <span id="fuente">FUENTE: —</span>
-  <span>SIN CACHÉ · CACHE-CONTROL: NO-STORE · <span id="estadoModo">—</span></span>
+  <span id="version">REPORTE v— · SIN CACHÉ · CACHE-CONTROL: NO-STORE</span>
+  <span id="estadoModo">—</span>
 </footer>
 
 <script>
@@ -279,7 +323,39 @@ function filaTabla(pares) {
     '<tr><td>' + k + '</td><td>' + v + '</td></tr>').join('') + '</table>';
 }
 
-function pintar(d) {
+function pintarProcedencia(d) {
+  const p = d.procedencia;
+  const contenedor = $('procedenciaContenido');
+  if (!p) { contenedor.innerHTML = '<p class="vacio">sin datos de procedencia</p>'; return; }
+  const corto = (h) => h ? h.slice(0, 18) + '…' : '—';
+  const filas = [
+    ['MÉTRICAS', d.meta.fuente + ' · ' + d.meta.split.toUpperCase() + ' · ' +
+      d.meta.n_imagenes + ' imágenes', d.meta.duracion_ms.toFixed(0) + ' ms'],
+    ['CHECKPOINT', p.checkpoint.ruta + ' · ' + p.checkpoint.bytes.toLocaleString('es-CO') +
+      ' B · ' + (p.checkpoint.modificado || '—'), corto(p.checkpoint.sha256)],
+    ['PARTICIONES', p.indices.ruta + ' · ' + p.indices.bytes.toLocaleString('es-CO') +
+      ' B · ' + (p.indices.modificado || '—'), corto(p.indices.sha256)],
+    ['DATASET', p.dataset.ruta + ' · ' + p.dataset.imagenes.toLocaleString('es-CO') +
+      ' imágenes', 'lectura'],
+    ['SALIDAS', p.salidas.predicciones + ' · ' + p.salidas.decisiones, 'CSV'],
+    ['SISTEMA', 'Python ' + d.sistema.python + ' · Torch ' + d.sistema.torch + ' · ' +
+      d.sistema.device, d.sistema.uptime_s + ' s'],
+    ['CÁLCULO', p.calculo, 'en vivo'],
+  ];
+  const fuentes = Object.entries(p.fuentes || {}).map(([k, v]) =>
+    '<div class="lin"><span>' + k + '</span><span class="num tenue">' + v + '</span></div>').join('');
+  contenedor.innerHTML =
+    '<table class="proc"><thead><tr><th>BLOQUE</th><th>ORIGEN EXACTO</th><th>HUELLA</th></tr></thead><tbody>' +
+    filas.map(([k, v, h]) => '<tr><td>' + k + '</td><td>' + v + '</td><td><code>' + h +
+      '</code></td></tr>').join('') + '</tbody></table>' +
+    '<p class="nota">SHA-256 calculado sobre el contenido exacto. Si el checkpoint o las particiones cambian, ' +
+    'la huella cambia. Las métricas no se leen de outputs/: se vuelven a inferir en cada consulta. ' +
+    '<a href="/reporte?split=' + d.meta.split + '" target="_blank" style="color:var(--ok)">' +
+    '/reporte?split=' + d.meta.split + ' ↗</a></p>' +
+    '<div style="margin-top:12px">' + fuentes + '</div>';
+}
+
+function pintar(d, animar) {
   const m = d.metricas, r = d.regla_revision, mod = d.modelo, meta = d.meta;
 
   kpi('kAcc', pct(m.accuracy), m.errores + ' errores / ' + meta.n_imagenes + ' imágenes',
@@ -288,7 +364,8 @@ function pintar(d) {
   $('accArc').setAttribute('stroke-dasharray', (m.accuracy * LARGO_ARCO).toFixed(1) + ' ' + LARGO_ARCO);
   $('accArc').setAttribute('stroke', color(m.accuracy, .85, .78));
 
-  kpi('kF1', pct(m.macro_f1, 2), 'media no ponderada', color(m.macro_f1, .82, .75));
+  kpi('kF1', pct(m.macro_f1, 2), (mod.clases || 10) + ' clases · media no ponderada',
+      color(m.macro_f1, .82, .75));
   medidor('mF1', m.macro_f1, color(m.macro_f1, .82, .75));
 
   kpi('kTop3', pct(m.top3), 'acierto en las 3 primeras', color(m.top3, .95, .90));
@@ -298,7 +375,9 @@ function pintar(d) {
   medidor('mCob', r.cobertura, 'var(--ok)');
 
   const tonoSelectiva = color(r.accuracy_no_marcadas, .90, .85);
-  kpi('kSel', pct(r.accuracy_no_marcadas), 'umbral ' + r.umbral.toFixed(2) + ' · objetivo 90%', tonoSelectiva);
+  kpi('kSel', pct(r.accuracy_no_marcadas), 'umbral ' + r.umbral.toFixed(2) +
+      (mod.objetivo_precision != null ? ' · objetivo ' + pct(mod.objetivo_precision, 0) : ''),
+      tonoSelectiva);
   medidor('mSel', r.accuracy_no_marcadas, tonoSelectiva);
 
   kpi('kLat', d.latencia.ms_por_imagen_p95.toFixed(2) + ' ms', 'media ' + d.latencia.ms_por_imagen_media.toFixed(2) + ' ms');
@@ -356,14 +435,15 @@ function pintar(d) {
     ['Entrenables', mod.parametros_entrenables.toLocaleString('es-CO')],
     ['Cómputo', (mod.macs / 1e6).toFixed(2) + ' M MACs · ' + (mod.flops / 1e6).toFixed(2) + ' MFLOPs'],
     ['Entrada · clases', mod.entrada.join('×') + ' · ' + mod.clases],
-    ['Optimización', mod.funcion_perdida + ' · ' + mod.optimizador + ' · ' + mod.plan_lr],
+    ['Optimización', (mod.funcion_perdida || 'no declarado') + ' · ' +
+      (mod.optimizador || 'no declarado') + ' · ' + (mod.plan_lr || 'no declarado')],
     ['Hiperparámetros', mod.hiperparametros
       ? Object.entries(mod.hiperparametros).map(([k, v]) => k + '=' + v).join(' · ') : '—'],
     ['Dispositivo', mod.device + ' · ' + d.sistema.hilos_torch + ' hilos'],
     ['Torch', d.sistema.torch + ' · Python ' + d.sistema.python],
     ['Umbral', mod.umbral.toFixed(2) + (mod.umbral_calibrado ? ' calibrado' : ' sin calibrar') +
       (mod.objetivo_precision != null ? ' · objetivo ' + pct(mod.objetivo_precision, 0) : '')],
-    ['Checkpoint', d.sistema.tamano_checkpoint_mb + ' MB'],
+    ['Tamaño checkpoint', d.sistema.tamano_checkpoint_mb + ' MB'],
     ['Uptime API', d.sistema.uptime_s + ' s'],
   ]);
 
@@ -371,7 +451,7 @@ function pintar(d) {
   $('cnn').innerHTML =
     '<div class="dos">' +
       filaTabla([
-        ['Pérdida · ' + mod.funcion_perdida, m.perdida.toFixed(4)],
+        ['Pérdida · ' + (mod.funcion_perdida || 'no declarada'), m.perdida.toFixed(4)],
         ['Accuracy (top-1)', pct(m.accuracy, 2)],
         ['Top-3 · top-5', pct(m.top3, 2) + ' · ' + pct(m.top5, 2)],
         ['Errores', m.errores + ' / ' + meta.n_imagenes],
@@ -392,9 +472,11 @@ function pintar(d) {
           '<line x1="0" y1="30" x2="300" y2="30" stroke="#2ee6a8" stroke-width="2"/>' +
           '<text x="6" y="22" fill="#6b8399" font-size="9">lr ' + (mod.tasa_aprendizaje ?? '—') + '</text>' +
         '</svg>' +
-        '<p class="nota">' + mod.plan_lr + ' · ' + (hp.epocas ?? 20) + ' épocas · ' + mod.optimizador + '</p></div>' +
-      '<p class="nota">El entrenamiento usa una tasa fija: no hay decaimiento ni scheduler, así que la curva sería ' +
-        'una línea plana y no se dibuja un plan que no existe. Si se añade un scheduler, aquí se vería el descenso real.</p>' +
+        '<p class="nota">' + (mod.plan_lr || 'no declarado') + ' · ' +
+          (hp.epocas_max ?? hp.epocas ?? '—') + ' épocas · ' +
+          (mod.optimizador || 'no declarado') + '</p></div>' +
+      '<p class="nota">Plan declarado: ' + (mod.plan_lr || 'no declarado') +
+        '. Si el plan describe un cambio, aquí se vería la curva real.</p>' +
     '</div>' +
     '<p class="nota">Acierto, precisión, recall y F1 se muestran en %; la pérdida queda en escala 0–1.</p>';
 
@@ -436,16 +518,29 @@ function pintar(d) {
   if (d.artefactos) {
     $('artefactos').innerHTML = d.artefactos.map((a) =>
       '<div class="lin"><span>' + (a.existe ? '✓ ' : '· ') + a.nombre + '</span><span class="num tenue">' +
-      (a.existe ? a.bytes.toLocaleString('es-CO') + ' B' : 'sin generar') + '</span></div>').join('') +
+      (a.existe ? a.bytes.toLocaleString('es-CO') + ' B · ' + (a.modificado || '—') : 'sin generar') +
+      '</span></div>').join('') +
       '<div class="nota">Los genera <code>python -m modelo.evaluar</code>. ' +
       'El reporte no los lee: vuelve a medir sobre las imágenes.</div>';
   }
+
+  pintarProcedencia(d);
+  $('sello').className = 'sello ok';
+  $('sello').textContent = 'PROCEDENCIA OK';
 
   $('medido').textContent = 'MEDIDO EN VIVO · ' + meta.medido_en.replace('T', ' ') +
     ' · ' + meta.duracion_ms.toFixed(0) + ' ms';
   $('fuente').textContent = 'FUENTE: ' + meta.fuente + ' · ' + meta.split.toUpperCase() +
     ' · ' + meta.n_imagenes + ' IMÁGENES' + (meta.parcial ? ' · MUESTRA PARCIAL' : '');
+  $('version').textContent = 'REPORTE v' + meta.version +
+    ' · SIN CACHÉ · CACHE-CONTROL: NO-STORE';
   $('estadoModo').textContent = mod.umbral_calibrado ? 'UMBRAL CALIBRADO' : 'UMBRAL SIN CALIBRAR';
+  if (animar) {
+    const principal = document.querySelector('main');
+    principal.classList.remove('fresco');
+    void principal.offsetWidth;
+    principal.classList.add('fresco');
+  }
 }
 
 function esqueletoFilas(n, anchoBase) {
@@ -457,7 +552,7 @@ function esqueletoFilas(n, anchoBase) {
 
 function esqueletos() {
   ['clases', 'confusiones', 'errores', 'decisiones', 'sistema', 'calibracion',
-   'rendimiento', 'particion', 'artefactos', 'cnn'].forEach((id) => {
+   'rendimiento', 'particion', 'artefactos', 'procedenciaContenido', 'cnn'].forEach((id) => {
     const contenedor = $(id);
     if (contenedor) contenedor.innerHTML = esqueletoFilas(id === 'sistema' ? 6 : 5, 46);
   });
@@ -469,13 +564,17 @@ function esqueletos() {
     if (s) s.innerHTML = '<span class="esqueleto esq-sub"></span>';
   });
   $('accArc').setAttribute('stroke-dasharray', '0 ' + LARGO_ARCO);
+  $('sello').className = 'sello';
+  $('sello').textContent = 'VERIFICANDO…';
   $('medido').textContent = 'MIDIENDO…';
   $('fuente').textContent = 'FUENTE: —';
+  $('version').textContent = 'REPORTE v— · MIDIENDO… · SIN CACHÉ';
+  $('estadoModo').textContent = 'MIDIENDO';
 }
 
 function sinDatos() {
   ['clases', 'confusiones', 'errores', 'decisiones', 'sistema', 'calibracion',
-   'rendimiento', 'particion', 'artefactos', 'cnn', 'matriz'].forEach((id) => {
+   'rendimiento', 'particion', 'artefactos', 'procedenciaContenido', 'cnn', 'matriz'].forEach((id) => {
     if ($(id)) $(id).innerHTML = '<p class="vacio">sin datos</p>';
   });
   [['kAcc', 'kAccSub'], ['kF1', 'kF1Sub'], ['kTop3', 'kTop3Sub'],
@@ -485,19 +584,39 @@ function sinDatos() {
   });
   $('medido').textContent = 'SIN DATOS';
   $('fuente').textContent = 'FUENTE: —';
+  $('sello').className = 'sello bad';
+  $('sello').textContent = 'SIN PROCEDENCIA';
+  $('version').textContent = 'REPORTE v— · SIN CACHÉ · CACHE-CONTROL: NO-STORE';
+  $('estadoModo').textContent = 'SIN DATOS';
 }
 
+const MINIMO_ESQUELETO = 520;
+const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let primeraCarga = true;
+
 async function cargar(conEsqueleto) {
+  const principal = document.querySelector('main');
   const botones = document.querySelectorAll('[data-split]');
+  const inicio = performance.now();
   botones.forEach((b) => b.disabled = true);
-  if (conEsqueleto) esqueletos();
+  if (conEsqueleto) {
+    esqueletos();
+    $('carga').classList.add('on');
+    principal.setAttribute('aria-busy', 'true');
+  }
   try {
     const respuesta = await fetch('/reporte?split=' + split, {cache: 'no-store'});
     if (!respuesta.ok) {
       const error = await respuesta.json().catch(() => ({detail: respuesta.statusText}));
       throw new Error(error.detail || 'error ' + respuesta.status);
     }
-    pintar(await respuesta.json());
+    const datos = await respuesta.json();
+    if (conEsqueleto) {
+      const resto = MINIMO_ESQUELETO - (performance.now() - inicio);
+      if (resto > 0) await esperar(resto);
+    }
+    pintar(datos, conEsqueleto || primeraCarga);
+    primeraCarga = false;
     $('led').className = 'led ok';
     $('alerta').classList.add('oculto');
   } catch (error) {
@@ -506,6 +625,8 @@ async function cargar(conEsqueleto) {
     $('alerta').textContent = 'SIN DATOS · ' + error.message;
     sinDatos();
   } finally {
+    $('carga').classList.remove('on');
+    principal.setAttribute('aria-busy', 'false');
     botones.forEach((b) => b.disabled = false);
   }
 }
@@ -520,6 +641,22 @@ document.querySelectorAll('[data-split]').forEach((boton) => {
 
 setInterval(() => { $('hora').textContent = new Date().toISOString().slice(11, 19); }, 1000);
 $('hora').textContent = new Date().toISOString().slice(11, 19);
+
+if ('IntersectionObserver' in window) {
+  const observador = new IntersectionObserver((entradas) => {
+    entradas.forEach((entrada) => {
+      if (entrada.isIntersecting) {
+        entrada.target.classList.add('visible');
+        observador.unobserve(entrada.target);
+      }
+    });
+  }, {threshold: 0.08, rootMargin: '0px 0px -36px 0px'});
+  document.querySelectorAll('main > section, .kpi').forEach((elemento, indice) => {
+    elemento.classList.add('revelar');
+    elemento.style.transitionDelay = ((indice % 6) * 55) + 'ms';
+    observador.observe(elemento);
+  });
+}
 
 cargar(true);
 setInterval(() => cargar(false), 20000);

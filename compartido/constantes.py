@@ -29,6 +29,10 @@ IMG_SIZE = 32
 SEED = 42
 POR_CLASE = {"train": 500, "val": 100, "test": 100}
 
+FUNCION_PERDIDA = "CrossEntropyLoss"
+OPTIMIZADOR = "Adam"
+PLAN_LR = "constante (sin scheduler)"
+
 # Rutas (las carpetas se crean al ejecutar el código)
 CARPETA_DATOS = "data"
 CARPETA_SALIDAS = "outputs"

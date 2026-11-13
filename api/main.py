@@ -15,11 +15,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.clasificador import ArchivoInvalidoError, cargar_imagen, crear_predictor
 from api.docs import PAGINA_DOCS
@@ -45,6 +45,14 @@ ambas cosas quedan registradas por separado.
 La interfaz nunca importa el modelo: solo HTTP + JSON. La API lee el checkpoint
 `models/geoscene_cnn.pt` y, solo para `/reporte`, `splits/indices.json` y el
 dataset. Nada se escribe en el checkpoint durante una consulta.
+
+## Trazabilidad
+
+Cada respuesta de `/reporte` incluye `procedencia`: rutas, tamaños, fecha de
+modificación y SHA-256 del checkpoint y de las particiones, además de la fuente
+declarada de cada bloque (métricas, hiperparámetros, umbral, decisiones,
+artefactos y sistema). Las métricas se recalculan en cada consulta y nunca se
+leen de `outputs/`.
 
 ## Orígenes permitidos
 
@@ -77,7 +85,7 @@ ETIQUETAS = [
 
 app = FastAPI(
     title="GeoScene AI · API de clasificación y observabilidad",
-    version="1.3.0",
+    version="1.4.0",
     docs_url=None,   # /docs se sirve abajo con Swagger UI local, sin CDN
     redoc_url=None,  # una sola interfaz: Swagger ya es ejecutable
     summary="EuroSAT RGB 32×32 · CNN propia · revisión humana · métricas en vivo",
@@ -100,6 +108,14 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def sin_cache(request: Request, call_next):
+    respuesta = await call_next(request)
+    if request.url.path in ("/openapi.json", "/docs", "/panel", "/reporte"):
+        respuesta.headers["Cache-Control"] = "no-store"
+    return respuesta
 
 # Swagger UI viaja con el proyecto: /docs funciona sin internet
 app.mount(
@@ -169,7 +185,7 @@ class Prediccion(BaseModel):
                     {"categoria": "AnnualCrop", "confianza": 0.0119},
                 ],
                 "requiere_revision": False,
-                "umbral": 0.73,
+                "umbral": 0.64,
                 "tiempo_inferencia_ms": 0.24,
             }
         }
@@ -193,9 +209,12 @@ class MetaReporte(BaseModel):
     n_imagenes: int
     medido_en: str
     duracion_ms: float
-    fuente: str
+    fuente: str = Field(
+        ...,
+        description="Siempre 'calculado_en_vivo_sin_cache': cada consulta vuelve a inferir.",
+    )
     parcial: bool
-    version: str
+    version: str = Field(..., description="Versión del esquema del reporte.")
 
 
 class CapaModelo(BaseModel):
@@ -210,7 +229,7 @@ class Normalizacion(BaseModel):
 
 
 class ModeloInfo(BaseModel):
-    checkpoint: str
+    checkpoint: str = Field(..., description="Ruta del checkpoint leído; su SHA-256 está en procedencia.checkpoint.")
     bytes: int
     epoca: int | None
     val_accuracy: float | None
@@ -222,14 +241,22 @@ class ModeloInfo(BaseModel):
     canales: int
     capas: int
     arquitectura: list[CapaModelo]
-    hiperparametros: dict[str, Any] | None
-    funcion_perdida: str
-    optimizador: str
-    plan_lr: str
+    hiperparametros: dict[str, Any] | None = Field(
+        None, description="Leídos del checkpoint, no de outputs/."
+    )
+    funcion_perdida: str = Field(
+        ..., description="Declarada por el entrenamiento y, si existe, confirmada por el checkpoint."
+    )
+    optimizador: str = Field(
+        ..., description="Tomado de checkpoint.hiperparametros.optimizador."
+    )
+    plan_lr: str = Field(
+        ..., description="Declarado por el entrenamiento; no se deduce de la curva."
+    )
     tasa_aprendizaje: float | None
     device: str
     torch: str
-    umbral: float
+    umbral: float = Field(..., description="Leído de checkpoint.umbral y calibrado con validación.")
     umbral_calibrado: bool
     objetivo_precision: float | None
     img_size: int
@@ -352,10 +379,42 @@ class SistemaReporte(BaseModel):
     tamano_checkpoint_mb: float
 
 
+class Huella(BaseModel):
+    ruta: str
+    bytes: int
+    sha256: str = Field(..., description="SHA-256 del contenido exacto del archivo.")
+    modificado: str | None
+
+
+class DatasetHuella(BaseModel):
+    ruta: str
+    imagenes: int
+
+
+class SalidasHuella(BaseModel):
+    carpeta: str
+    predicciones: str
+    decisiones: str
+
+
+class Procedencia(BaseModel):
+    checkpoint: Huella
+    indices: Huella
+    dataset: DatasetHuella
+    salidas: SalidasHuella
+    fuentes: dict[str, str] = Field(
+        ...,
+        description="Origen declarado de cada bloque: checkpoint, constantes de entrenamiento, CSV o runtime.",
+    )
+    calculo: str = Field(..., description="Partición y número de imágenes realmente inferidas.")
+
+
 class Reporte(BaseModel):
     meta: MetaReporte
     modelo: ModeloInfo
-    metricas: MetricasReporte
+    metricas: MetricasReporte = Field(
+        ..., description="Calculadas en vivo sobre la partición; no se leen de outputs/."
+    )
     por_clase: dict[str, ClaseMetricas]
     confusion: ConfusionReporte
     top_confusiones: list[ConfusionPar]
@@ -367,6 +426,9 @@ class Reporte(BaseModel):
     particion: Particion
     artefactos: list[Artefacto]
     decisiones: DecisionesReporte
+    procedencia: Procedencia = Field(
+        ..., description="Trazabilidad verificable: rutas, tamaños, SHA-256 y fuente de cada bloque."
+    )
     sistema: SistemaReporte
 
     model_config = {
@@ -375,41 +437,70 @@ class Reporte(BaseModel):
                 "meta": {
                     "split": "test",
                     "n_imagenes": 1000,
-                    "medido_en": "2026-11-12T15:04:05",
-                    "duracion_ms": 1840.2,
+                    "medido_en": "2026-11-12T23:10:42.574",
+                    "duracion_ms": 323.5,
                     "fuente": "calculado_en_vivo_sin_cache",
                     "parcial": False,
-                    "version": "1.3.0",
+                    "version": "1.4.0",
                 },
                 "modelo": {
                     "checkpoint": "models/geoscene_cnn.pt",
-                    "epoca": 20,
-                    "parametros": 545098,
+                    "epoca": 27,
+                    "parametros": 4275978,
                     "device": "cpu",
                     "torch": "2.15.0",
-                    "umbral": 0.73,
+                    "umbral": 0.64,
                     "umbral_calibrado": True,
+                    "objetivo_precision": 0.9,
                     "img_size": 32,
                     "clases": 10,
                 },
                 "metricas": {
-                    "accuracy": 0.827,
-                    "top3": 0.975,
-                    "top5": 0.996,
-                    "perdida": 0.5055,
-                    "precision_macro": 0.8312,
-                    "recall_macro": 0.827,
-                    "macro_f1": 0.8244,
-                    "f1_weighted": 0.8244,
-                    "confianza_media": 0.825,
-                    "errores": 173,
+                    "accuracy": 0.855,
+                    "top3": 0.982,
+                    "top5": 0.999,
+                    "perdida": 0.4162,
+                    "precision_macro": 0.8542,
+                    "recall_macro": 0.855,
+                    "macro_f1": 0.8531,
+                    "f1_weighted": 0.8531,
+                    "confianza_media": 0.8384,
+                    "errores": 145,
                 },
                 "regla_revision": {
-                    "umbral": 0.73,
-                    "cobertura": 0.731,
-                    "porcentaje_marcadas": 0.269,
-                    "accuracy_no_marcadas": 0.9275,
-                    "accuracy_marcadas": 0.5539,
+                    "umbral": 0.64,
+                    "cobertura": 0.827,
+                    "porcentaje_marcadas": 0.173,
+                    "accuracy_no_marcadas": 0.925,
+                    "accuracy_marcadas": 0.5202,
+                },
+                "procedencia": {
+                    "checkpoint": {
+                        "ruta": "models/geoscene_cnn.pt",
+                        "bytes": 17112997,
+                        "sha256": "c2bba8d15115ea094ce723a2f3e520e7d380eb2c00c0fd3dd58275eca7ba1510",
+                        "modificado": "2026-11-12T22:33:35",
+                    },
+                    "indices": {
+                        "ruta": "splits/indices.json",
+                        "bytes": 46419,
+                        "sha256": "503829561fe996aaa1c675d0aaf178634d7fd2acb378e75ddcb6bd08ac09b23a",
+                        "modificado": "2026-11-12T22:32:23",
+                    },
+                    "dataset": {"ruta": "data", "imagenes": 27000},
+                    "salidas": {
+                        "carpeta": "outputs",
+                        "predicciones": "outputs/predicciones.csv",
+                        "decisiones": "outputs/decisiones.csv",
+                    },
+                    "fuentes": {
+                        "metricas": "inferencia_en_vivo:test",
+                        "modelo": "models/geoscene_cnn.pt",
+                        "umbral": "models/geoscene_cnn.pt#umbral",
+                        "decisiones": "outputs/decisiones.csv",
+                        "sistema": "runtime",
+                    },
+                    "calculo": "softmax_sobre_1000_imagenes_test",
                 },
             }
         }
