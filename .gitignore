@@ -10,3 +10,5 @@ outputs/
 # Sí se suben cuando estén listos:
 #   models/geoscene_cnn.pt   (modelo final)
 #   splits/indices.json      (particiones)
+models/*
+!models/geoscene_cnn.pt
