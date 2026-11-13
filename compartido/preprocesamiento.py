@@ -9,13 +9,15 @@ from torchvision.transforms import v2
 from compartido.constantes import IMG_SIZE
 
 
-def crear_transformacion(media=None, desviacion=None):
-    """Imagen (PIL) -> tensor 3 x 32 x 32. Normaliza solo si se dan media y desviación."""
-    pasos = [
-        v2.ToImage(),
-        v2.Resize((IMG_SIZE, IMG_SIZE)),
-        v2.ToDtype(torch.float32, scale=True),
-    ]
+def crear_transformacion(media=None, desviacion=None, aumentar=False):
+    """Imagen (PIL) -> tensor 3 x 32 x 32. Normaliza solo si se dan media y desviación.
+
+    aumentar=True añade giros aleatorios: SOLO para entrenamiento (nunca en validación, test ni app).
+    """
+    pasos = [v2.ToImage()]
+    if aumentar:
+        pasos += [v2.RandomHorizontalFlip(), v2.RandomVerticalFlip()]
+    pasos += [v2.Resize((IMG_SIZE, IMG_SIZE)), v2.ToDtype(torch.float32, scale=True)]
     if media is not None:
         pasos.append(v2.Normalize(mean=media, std=desviacion))
     return v2.Compose(pasos)

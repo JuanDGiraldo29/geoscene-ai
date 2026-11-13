@@ -18,21 +18,28 @@ class GeoSceneCNN(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # TODO 1: bloques convolucionales. Cada bloque suele ser:
-        #     nn.Conv2d(canales_entrada, canales_salida, kernel_size=3, padding=1),
-        #     nn.ReLU(),
-        #     nn.MaxPool2d(2)
-        #   Bloque 1: entra con 3 canales (RGB).   32x32 -> 16x16
-        #   Bloque 2: entra con los canales del bloque 1.   16x16 -> 8x8
-        self.convolucionales = None
+        # Bloques convolucionales: extraen patrones visuales (bordes, texturas, formas)
+        self.convolucionales = nn.Sequential(
+            # Bloque 1: 3 canales (RGB) -> 32 mapas de características.  32x32 -> 16x16
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
 
-        # TODO 2: parte final: nn.Flatten() y una o más nn.Linear.
-        #   Ojo: el tamaño de entrada de la primera Linear es
-        #   (canales del bloque 2) * 8 * 8. Debe terminar con len(CLASES) salidas.
-        self.clasificador = None
+            # Bloque 2: 32 -> 64 mapas de características.  16x16 -> 8x8
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+        )
+
+        # Parte final: convierte los mapas en 10 valores, uno por clase
+        self.clasificador = nn.Sequential(
+            nn.Flatten(),                   # 64 x 8 x 8 -> 4096 números
+            nn.Linear(64 * 8 * 8, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3), 
+            nn.Linear(128, len(CLASES)),    # 10 salidas (logits)
+        )
 
     def forward(self, x):
-        # TODO 3: pasar x por las convolucionales y luego por el clasificador.
-        #   Devuelve los valores crudos (logits). NO apliques softmax aquí:
-        #   CrossEntropyLoss ya lo incluye.
-        raise NotImplementedError("TODO 3")
+        x = self.convolucionales(x)
+        return self.clasificador(x)

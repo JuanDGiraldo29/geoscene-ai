@@ -22,41 +22,44 @@ from compartido.preprocesamiento import crear_transformacion
 
 
 def cargar_eurosat(transform=None):
-    """Devuelve el dataset EuroSAT completo (RGB, 27.000 imágenes).
-
-    TODO 1: usar datasets.EuroSAT(root=CARPETA_DATOS, download=True, transform=transform)
-            (igual que hicieron con FashionMNIST en el curso).
-    TODO 2: comprobar que dataset.classes == CLASES (mismo orden que compartido/constantes.py).
-    """
-    raise NotImplementedError("TODO 1 y 2")
+    """Devuelve el dataset EuroSAT completo (RGB, 27.000 imágenes)."""
+    dataset = datasets.EuroSAT(root=CARPETA_DATOS, download=True, transform=transform)
+    assert list(dataset.classes) == CLASES, f"Las clases no coinciden: {dataset.classes}"
+    return dataset
 
 
 def crear_particiones(etiquetas):
-    """Recibe la lista de etiquetas (dataset.targets) y devuelve
-    {"train": [...índices...], "val": [...], "test": [...]}.
+    """Devuelve {"train": [...índices...], "val": [...], "test": [...]}, balanceadas por clase."""
+    etiquetas = np.array(etiquetas)
+    rng = np.random.default_rng(SEED)
+    particiones = {nombre: [] for nombre in POR_CLASE}
 
-    TODO 3: para cada clase
-              - buscar los índices de esa clase (np.flatnonzero(etiquetas == clase))
-              - mezclarlos con np.random.default_rng(SEED).permutation(...)
-              - repartir: los primeros 500 a train, los siguientes 100 a val, los siguientes 100 a test
-    TODO 4: comprobar con assert que
-              - no hay índices repetidos entre particiones
-              - cada partición tiene POR_CLASE[nombre] * 10 imágenes
-    """
-    raise NotImplementedError("TODO 3 y 4")
+    for clase in range(len(CLASES)):
+        indices = rng.permutation(np.flatnonzero(etiquetas == clase))  # índices de la clase, mezclados
+        inicio = 0
+        for nombre, cantidad in POR_CLASE.items():
+            particiones[nombre].extend(indices[inicio:inicio + cantidad].tolist())
+            inicio += cantidad
+
+    # Comprobaciones: sin repetidos entre particiones y tamaños correctos
+    todos = [i for lista in particiones.values() for i in lista]
+    assert len(todos) == len(set(todos)), "Hay imágenes repetidas entre particiones"
+    for nombre, cantidad in POR_CLASE.items():
+        assert len(particiones[nombre]) == cantidad * len(CLASES)
+    return particiones
 
 
 def guardar_indices(particiones):
-    """TODO 5: guardar el diccionario en RUTA_INDICES como JSON
-    (crear la carpeta con os.makedirs(..., exist_ok=True); los índices deben ser int de Python)."""
-    raise NotImplementedError("TODO 5")
+    """Guarda las particiones en RUTA_INDICES como JSON."""
+    os.makedirs(os.path.dirname(RUTA_INDICES), exist_ok=True)
+    with open(RUTA_INDICES, "w") as archivo:
+        json.dump(particiones, archivo)
 
 
 def cargar_indices():
-    """TODO 6: leer RUTA_INDICES y devolver el diccionario con train, val y test.
-    Se usa luego con torch.utils.data.Subset(dataset, indices['train'])."""
-    raise NotImplementedError("TODO 6")
-
+    """Lee RUTA_INDICES y devuelve el diccionario con train, val y test."""
+    with open(RUTA_INDICES) as archivo:
+        return json.load(archivo)
 
 if __name__ == "__main__":
     dataset = cargar_eurosat(transform=crear_transformacion())
