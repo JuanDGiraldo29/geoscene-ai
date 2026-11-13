@@ -85,7 +85,7 @@ if st.session_state.prediccion is None:
     columna_imagen, columna_resultado = st.columns([1, 2])
 
     with columna_imagen:
-        st.image(st.session_state.imagen, caption=archivo.name, width=250)
+        st.image(st.session_state.imagen, caption=archivo.name, width=320)
 
     with columna_resultado:
         if st.button("Clasificar imagen", type="primary"):
@@ -114,7 +114,7 @@ pred = st.session_state.prediccion
 columna_imagen, columna_resultado = st.columns([1, 2])
 
 with columna_imagen:
-    st.image(st.session_state.imagen, caption=archivo.name, width=250)
+    st.image(st.session_state.imagen, caption=archivo.name, width=320)
 
 with columna_resultado:
     st.markdown(ui.tarjeta_prediccion(pred, nombres_es), unsafe_allow_html=True)

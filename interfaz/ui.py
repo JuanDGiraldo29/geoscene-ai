@@ -51,50 +51,50 @@ html, body, .stApp, [data-testid="stSidebar"], [data-testid="stMarkdownContainer
 [data-testid="stSidebarCollapseButton"] button{color:var(--gs-tenue) !important}
 [data-testid="stCaptionContainer"]{color:var(--gs-tenue)}
 h1,h2,h3{font-family:var(--gs-mono) !important;font-weight:600 !important;letter-spacing:.14em}
-h1{font-size:19px !important}
-h2{font-size:13px !important;letter-spacing:.18em !important;color:var(--gs-tenue) !important}
-h3{font-size:15px !important}
-p,li,label,span{font-size:13px}
+h1{font-size:23px !important}
+h2{font-size:16px !important;letter-spacing:.18em !important;color:var(--gs-tenue) !important}
+h3{font-size:18px !important}
+p,li,label,span{font-size:15px}
 a{color:var(--gs-ok)}
 .gs-head{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;
   border:1px solid var(--gs-line2);background:rgba(8,13,20,.82);padding:14px 18px;margin:0 0 18px}
 .gs-marca{display:flex;align-items:center;gap:12px}
 .gs-led{width:10px;height:10px;border-radius:50%;background:var(--gs-ok);
   box-shadow:0 0 12px var(--gs-ok)}
-.gs-marca b{display:block;font-size:15px;letter-spacing:.22em}
-.gs-marca small{display:block;color:var(--gs-tenue);font-size:9px;letter-spacing:.18em;margin-top:2px}
+.gs-marca b{display:block;font-size:16px;letter-spacing:.22em}
+.gs-marca small{display:block;color:var(--gs-tenue);font-size:10px;letter-spacing:.18em;margin-top:2px}
 .gs-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.gs-chip{display:inline-block;border:1px solid var(--gs-line2);padding:3px 8px;font-size:9px;
+.gs-chip{display:inline-block;border:1px solid var(--gs-line2);padding:3px 8px;font-size:10px;
   letter-spacing:.12em;color:var(--gs-tenue);white-space:nowrap}
 .gs-chip.ok{color:var(--gs-ok);border-color:rgba(46,230,168,.45);background:rgba(46,230,168,.08)}
 .gs-chip.warn{color:var(--gs-warn);border-color:rgba(255,176,32,.45);
   background:rgba(255,176,32,.08)}
-.gs-link{display:inline-block;color:var(--gs-ok);text-decoration:none;font-size:9px;
+.gs-link{display:inline-block;color:var(--gs-ok);text-decoration:none;font-size:10px;
   letter-spacing:.14em;border:1px solid rgba(46,230,168,.45);padding:4px 9px}
 .gs-link:hover{border-color:var(--gs-ok)}
 .gs-flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:16px 0 6px}
-.gs-box{border:1px solid var(--gs-line2);padding:9px 12px;min-width:130px;background:rgba(20,32,44,.25)}
+.gs-box{border:1px solid var(--gs-line2);padding:10px 14px;min-width:148px;background:rgba(20,32,44,.25)}
 .gs-box.on{border-color:rgba(46,230,168,.5);background:rgba(46,230,168,.06)}
-.gs-box b{display:block;font-size:10px;letter-spacing:.1em;font-weight:600}
-.gs-box small{color:var(--gs-tenue);font-size:9px}
+.gs-box b{display:block;font-size:11px;letter-spacing:.1em;font-weight:600}
+.gs-box small{color:var(--gs-tenue);font-size:10px}
 .gs-arrow{align-self:center;color:var(--gs-ok)}
 .gs-card{border:1px solid var(--gs-line2);
-  background:linear-gradient(180deg,rgba(20,32,44,.35),transparent);padding:16px 18px;min-width:0}
-.gs-label{display:block;color:var(--gs-tenue);font-size:9px;letter-spacing:.18em;margin-bottom:8px}
-.gs-big{font-size:34px;letter-spacing:-.01em;line-height:1.1;font-weight:500}
-.gs-code{font-size:13px;color:var(--gs-tenue);letter-spacing:.02em}
-.gs-sub{color:var(--gs-tenue);font-size:11px;margin-top:8px;line-height:1.6}
-.gs-nota{color:var(--gs-tenue);font-size:10px;margin-top:12px;line-height:1.6}
-.gs-top3{margin-top:14px}
-.gs-row{display:grid;grid-template-columns:190px 1fr 58px;gap:10px;align-items:center;
-  padding:6px 0;border-bottom:1px solid rgba(29,47,63,.45)}
+  background:linear-gradient(180deg,rgba(20,32,44,.35),transparent);padding:18px 20px;min-width:0}
+.gs-label{display:block;color:var(--gs-tenue);font-size:10px;letter-spacing:.18em;margin-bottom:8px}
+.gs-big{font-size:42px;letter-spacing:-.01em;line-height:1.1;font-weight:500}
+.gs-code{font-size:14px;color:var(--gs-tenue);letter-spacing:.02em}
+.gs-sub{color:var(--gs-tenue);font-size:12.5px;margin-top:10px;line-height:1.65}
+.gs-nota{color:var(--gs-tenue);font-size:11.5px;margin-top:12px;line-height:1.65}
+.gs-top3{margin-top:16px}
+.gs-row{display:grid;grid-template-columns:210px 1fr 66px;gap:12px;align-items:center;
+  padding:8px 0;border-bottom:1px solid rgba(29,47,63,.45)}
 .gs-row:last-child{border-bottom:0}
-.gs-nom{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
-.gs-bar{height:8px;background:#101a24;display:block}
+.gs-nom{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.gs-bar{height:9px;background:#101a24;display:block}
 .gs-bar i{display:block;height:100%}
-.gs-num{text-align:right;font-variant-numeric:tabular-nums;font-size:11px}
-.gs-alerta{border-left:2px solid var(--gs-line2);padding:8px 12px;margin-top:12px;
-  font-size:11px;line-height:1.6}
+.gs-num{text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px}
+.gs-alerta{border-left:2px solid var(--gs-line2);padding:10px 14px;margin-top:14px;
+  font-size:12.5px;line-height:1.65}
 .gs-alerta.warn{border-left-color:var(--gs-warn);color:#ffe2b0}
 .gs-alerta.ok{border-left-color:var(--gs-ok);color:#bff5e2}
 .gs-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -105,9 +105,9 @@ a{color:var(--gs-ok)}
 .gs-skel-sub{height:9px;width:56%;margin-top:10px}
 .gs-skel-bar{height:8px;margin:10px 0;width:100%}
 @media (prefers-reduced-motion:reduce){.gs-skel{animation:none;background:#0e1721}}
-.stButton > button{font-family:var(--gs-mono) !important;font-size:11px;letter-spacing:.1em;
+.stButton > button{font-family:var(--gs-mono) !important;font-size:12px;letter-spacing:.1em;
   text-transform:uppercase;border-radius:0;border:1px solid var(--gs-line2);
-  background:transparent;color:var(--gs-fg)}
+  background:transparent;color:var(--gs-fg);padding:8px 16px}
 .stButton > button:hover{border-color:var(--gs-ok);color:var(--gs-ok)}
 .stButton > button[kind="primary"]{background:rgba(46,230,168,.12);
   border-color:rgba(46,230,168,.6);color:var(--gs-ok)}
@@ -120,13 +120,13 @@ a{color:var(--gs-ok)}
   background:rgba(8,13,20,.6) !important}
 [data-testid="stMetric"]{border:1px solid var(--gs-line2);
   background:linear-gradient(180deg,rgba(20,32,44,.35),transparent);padding:12px 14px}
-[data-testid="stMetricLabel"]{color:var(--gs-tenue);font-size:9px;letter-spacing:.16em;
+[data-testid="stMetricLabel"]{color:var(--gs-tenue);font-size:10px;letter-spacing:.16em;
   text-transform:uppercase}
-[data-testid="stMetricValue"]{font-size:22px;font-family:var(--gs-mono)}
+[data-testid="stMetricValue"]{font-size:24px;font-family:var(--gs-mono)}
 [data-testid="stAlert"]{border-radius:0}
 hr{border-color:var(--gs-line2) !important}
-.gs-side-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;
-  border-bottom:1px solid rgba(29,47,63,.45);font-size:11px}
+.gs-side-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;
+  border-bottom:1px solid rgba(29,47,63,.45);font-size:12px}
 .gs-side-row span{color:var(--gs-tenue)}
 .gs-side-row b{font-weight:500}
 </style>
@@ -288,12 +288,12 @@ def tarjeta_decision(decision, etiquetas):
   <div class="gs-duo">
     <div>
       <span class="gs-label">PREDICCIÓN DEL MODELO</span>
-      <div class="gs-big" style="font-size:22px">
+      <div class="gs-big" style="font-size:28px">
         {_nombre(decision["categoria_modelo"], etiquetas)}</div>
     </div>
     <div>
       <span class="gs-label">DECISIÓN HUMANA</span>
-      <div class="gs-big" style="font-size:22px">
+      <div class="gs-big" style="font-size:28px">
         {_nombre(decision["decision_humana"], etiquetas)}</div>
     </div>
   </div>
