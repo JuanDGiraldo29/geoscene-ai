@@ -44,13 +44,13 @@ interfaz/ (Streamlit)  ──HTTP/JSON──►  api/ (FastAPI)  ──►  mode
 | Tarea | Clasificación multiclase de imágenes satelitales |
 | Dataset | EuroSAT RGB, 27.000 imágenes, 10 clases |
 | Entrada del modelo | RGB 32×32, normalizada con media y desviación de train |
-| Arquitectura | CNN propia de dos bloques convolucionales (64 y 128 canales, BatchNorm), sin pesos preentrenados |
+| Arquitectura | CNN propia de dos bloques convolucionales (32 y 64 canales), sin pesos preentrenados |
 | Salida | 10 logits → softmax; categoría, confianza y top-3 |
 | Particiones | 5.000 train / 1.000 validación / 1.000 test (500/100/100 por clase) |
 | Semilla | 42 |
-| Checkpoint | `models/geoscene_cnn.pt` (época 27, 4.275.978 parámetros) |
-| Umbral de revisión | 0.64, calibrado solo con validación |
-| Métricas finales | Accuracy 85,5 % · macro F1 85,31 % · top-3 98,2 % |
+| Checkpoint | `models/geoscene_cnn.pt` (época 20, 545.098 parámetros) |
+| Umbral de revisión | 0,73, calibrado solo con validación |
+| Métricas finales | Accuracy 82,7 % · macro F1 82,44 % · top-3 97,5 % |
 | Stack | PyTorch, FastAPI, Streamlit, Swagger UI local |
 | Artefactos versionados | Checkpoint, índices de particiones y código; `data/` y `outputs/` no se suben |
 
@@ -176,29 +176,74 @@ recalculan en vivo con `/reporte`. No se leen de un archivo histórico.
 
 | Métrica | Valor |
 |---|---|
-| Accuracy (top-1) | **85,5 %** |
-| Macro F1 | **85,31 %** |
-| F1 ponderado | 85,31 % |
-| Top-3 | 98,2 % |
-| Top-5 | 99,9 % |
-| Precisión macro | 85,42 % |
-| Recall macro | 85,50 % |
-| Pérdida (CrossEntropy) | 0,4162 |
-| Confianza media | 83,84 % |
-| Errores | 145 de 1.000 |
+| Accuracy (top-1) | **82,7 %** |
+| Macro F1 | **82,44 %** |
+| F1 ponderado | 82,44 % |
+| Top-3 | 97,5 % |
+| Top-5 | 99,6 % |
+| Precisión macro | 82,71 % |
+| Recall macro | 82,70 % |
+| Pérdida (CrossEntropy) | 0,5055 |
+| Confianza media | 82,53 % |
+| Errores | 173 de 1.000 |
 
-**Regla de revisión.** Con umbral 0,64, el 17,3 % de las imágenes se marcan para
-revisión. En las no marcadas la accuracy sube a 92,5 %; en las marcadas baja a
-52,0 %. La regla no adivina: justamente separa los casos donde el modelo duda.
+**Regla de revisión.** Con umbral 0,73, el 26,9 % de las imágenes se marcan para
+revisión. En las no marcadas la accuracy sube a 92,75 %; en las marcadas baja a
+55,39 %. La regla no adivina: justamente separa los casos donde el modelo duda.
 
-**Costo.** Una inferencia 32×32 tarda aproximadamente 0,66 ms en CPU (medida en
-vivo, e incluye decodificar la imagen), con un throughput cercano a 1.739
-imágenes por segundo. El modelo tiene 4.275.978 parámetros, 24,8 M MACs y
-49,7 M FLOPs por imagen.
+**Costo.** Una inferencia 32×32 tarda aproximadamente 0,21 ms en CPU (medida en
+vivo, solo preprocesamiento y modelo); el camino completo, incluyendo decodificar
+el archivo, ronda 0,26 ms, con un throughput cercano a 4.709 imágenes por
+segundo. El modelo tiene 545.098 parámetros, 6,13 M MACs y 12,26 M FLOPs por
+imagen.
 
 **Calibración.** El reporte incluye ECE (10 bins), Brier multiclase, log-loss,
 entropía y una tabla de fiabilidad. Es información descriptiva: no se aplica
 temperature scaling para no alterar el umbral ya calibrado con validación.
+
+## Comparación de arquitecturas y decisión
+
+Durante el proyecto se entrenaron dos variantes de la misma CNN. La que queda
+integrada y versionada en esta rama es la **arquitectura de referencia**; la
+segunda se conserva en `feature/johan` como experimento para la exposición.
+
+| Rasgo | Referencia (esta rama) | Variante experimental (`feature/johan`) |
+|---|---|---|
+| Canales convolucionales | 32 → 64 | 64 → 128 |
+| Normalización por lotes | No | `BatchNorm2d` tras cada convolución |
+| Parámetros | 545.098 | 4.275.978 (≈7,8×) |
+| MACs / FLOPs por imagen | 6,13 M / 12,26 M | 24,8 M / 49,7 M |
+| Época elegida con validación | 20 · 80,7 % | 27 · 83,7 % |
+| Accuracy de test | 82,70 % | 85,50 % |
+| Macro F1 de test | 82,44 % | 85,31 % |
+| Tamaño del checkpoint | 2,1 MB | 17,1 MB |
+
+**Por qué la integración usa la referencia.** Es la CNN del ejercicio base, se
+entrena y evalúa en CPU sin dificultad, el checkpoint pesa 2,1 MB y el resultado
+es reproducible con los comandos del README. La variante duplica canales y
+multiplica por ~8 los parámetros y por ~4 el cómputo; la mejora de métricas
+(≈2,8 puntos de accuracy) es real, pero no cambia la naturaleza del ejercicio.
+
+**Por qué se muestran las dos.** La comparación es parte del análisis: permite
+explicar que una red más ancha y con normalización mejora, y a qué costo. Para
+la exposición se puede presentar la variante de `feature/johan` como el
+resultado con las métricas más altas —los equipos disponibles permitieron
+entrenarla— y dejar la referencia como la versión liviana y estrictamente
+apegada al taller. Ambas usan las mismas particiones, semilla y umbral
+calibrado con validación, así que la comparación es justa.
+
+**Sobre `BatchNorm2d`.** No aparece en los ejercicios de clase, pero el taller
+permitía libertad de implementación. Su función es normalizar las activaciones
+de cada canal dentro de un mini-lote (media 0, varianza 1) y aplicar después un
+escalado y un desplazamiento aprendibles. En la práctica estabiliza y acelera la
+convergencia, reduce la sensibilidad a la inicialización y a la tasa de
+aprendizaje, y actúa como una regularización suave. En inferencia usa las medias
+y varianzas acumuladas durante el entrenamiento (`running_mean`/`running_var`),
+por lo que la predicción es determinista. El costo es pequeño en parámetros
+(2 por canal) pero obliga a entrenar con lotes suficientemente grandes; aquí se
+usó lote 64. En esta rama se mantiene la referencia sin BatchNorm para no
+depender de una técnica fuera del material base; su justificación queda
+documentada para la variante experimental.
 
 ## Panel operativo y Swagger
 
@@ -227,7 +272,7 @@ Huellas del estado certificado:
 
 | Archivo | SHA-256 (prefijo) |
 |---|---|
-| `models/geoscene_cnn.pt` | `c2bba8d15115ea09…` |
+| `models/geoscene_cnn.pt` | `e073084ab5c7633b…` |
 | `splits/indices.json` | `503829561fe996aa…` |
 
 La API valida que el orden de clases del checkpoint coincida con
@@ -269,7 +314,9 @@ python -m pytest -q
 
 La suite cubre el contrato, el mock, el clasificador, los endpoints de
 predicción y decisión, el panel, Swagger, OpenAPI, la procedencia y las huellas
-SHA-256. Estado actual: **31 pruebas aprobadas**.
+SHA-256. `tests/test_modelo_referencia.py` certifica además que el checkpoint
+versionado es exactamente el de la rama base (arquitectura, parámetros, época,
+umbral y SHA-256). Estado actual: **33 pruebas aprobadas**.
 
 ## Decisiones y límites conocidos
 
@@ -294,7 +341,7 @@ Este README sirve como base técnica. Para el documento de máximo 3 páginas,
 los insumos ya están listos:
 
 - **Métricas y matriz de confusión:** `/reporte?split=test` y `/panel`.
-- **Regla de revisión justificada:** umbral 0,64 elegido en validación, con
+- **Regla de revisión justificada:** umbral 0,73 elegido en validación, con
   cobertura y accuracy de marcadas/no marcadas.
 - **Tres errores representativos:** bloque `errores_alta_confianza` del reporte.
 - **Limitación principal:** el modelo solo conoce 10 categorías y no detecta

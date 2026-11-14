@@ -7,6 +7,12 @@ obligatorios (si agregan hiperparámetros, que tengan valor por defecto).
 Es la CNN base del curso: dos bloques convolucionales y una parte final que
 clasifica. En el curso usaron nn.Linear sobre 28x28; aquí la entrada es
 3 canales (RGB) de 32x32 y la salida son 10 valores (uno por clase).
+
+Esta es la arquitectura de referencia del proyecto (32 y 64 canales, 545.098
+parámetros). En `feature/johan` existe una variante experimental con el doble
+de canales y BatchNorm2d (64/128, 4,3 M de parámetros); su comparación y la
+justificación de BatchNorm están documentadas en el README. El checkpoint
+versionado en `models/geoscene_cnn.pt` corresponde a esta clase.
 """
 import torch
 from torch import nn
@@ -16,36 +22,36 @@ from compartido.constantes import CLASES
 
 class GeoSceneCNN(nn.Module):
 
-    def __init__(self, canales=(64, 128), neuronas_ocultas=512, dropout=0.4):
+    def __init__(self):
         super().__init__()
 
-        # Bloque 1: 3 canales (RGB).   32x32 -> 16x16
-        # Bloque 2: 64 canales.        16x16 ->  8x8
-        c1, c2 = canales
+        # Bloques convolucionales: extraen patrones visuales (bordes, texturas, formas)
         self.convolucionales = nn.Sequential(
-            nn.Conv2d(3, c1, kernel_size=3, padding=1),
-            nn.BatchNorm2d(c1),
+            # Bloque 1: 3 canales (RGB) -> 32 mapas de características.  32x32 -> 16x16
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            nn.Conv2d(c1, c2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(c2),
+
+            # Bloque 2: 32 -> 64 mapas de características.  16x16 -> 8x8
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2),
         )
 
-        # Parte final: c2 * 8 * 8 -> oculta -> 10 clases
+        # Parte final: convierte los mapas en 10 valores, uno por clase
         self.clasificador = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(c2 * 8 * 8, neuronas_ocultas),
+            nn.Flatten(),                   # 64 x 8 x 8 -> 4096 números
+            nn.Linear(64 * 8 * 8, 128),
             nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(neuronas_ocultas, len(CLASES)),
+            nn.Dropout(0.3),
+            nn.Linear(128, len(CLASES)),    # 10 salidas (logits)
         )
 
     def forward(self, x):
         # Devuelve los valores crudos (logits). NO se aplica softmax aquí:
         # CrossEntropyLoss ya lo incluye.
-        return self.clasificador(self.convolucionales(x))
+        x = self.convolucionales(x)
+        return self.clasificador(x)
 
 
 if __name__ == "__main__":
