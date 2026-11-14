@@ -37,11 +37,20 @@ API y el reporte; nadie lo escribe durante una consulta.
 | GET | `/health` | Streamlit | modo `real` o `mock` | — |
 | GET | `/clases` | Streamlit | 10 clases + nombres en español | — |
 | GET | `/alcance` | Streamlit | aviso de alcance del modelo | — |
-| POST | `/predict` | Streamlit | imagen → categoría, confianza, top-3, umbral; escribe `outputs/predicciones.csv` | 400 archivo inválido, 422 sin archivo |
+| POST | `/predict` | Streamlit | imagen → categoría, confianza, top-3, umbral; escribe `outputs/predicciones.csv` | 400 archivo vacío, no es imagen o pesa más de 10 MB; 422 sin archivo |
 | POST | `/decision` | Streamlit | acepta o corrige; escribe `outputs/decisiones.csv` | 400 clase inválida, 404 id desconocido, 409 ya decidida |
 | GET | `/reporte` | panel, docente | recorre `val` o `test` y mide **en ese momento** todo lo de la tabla de abajo | 503 sin checkpoint, particiones o dataset; 422 parámetros inválidos |
 | GET | `/panel` | navegador | tablero operativo (refresco 20 s) | — |
 | GET | `/docs`, `/openapi.json` | docente | contrato navegable y ejecutable | — |
+
+### `/predict`
+
+Acepta `multipart/form-data` con el campo `file`. El límite es de **10 MB**
+(`TAMANO_MAXIMO_MB` en `compartido/constantes.py`): la interfaz lo anuncia con
+el mismo número gracias a `.streamlit/config.toml` (`server.maxUploadSize = 10`)
+y `tests/test_limite_subida.py` verifica que ambos sigan iguales. Los archivos
+vacíos, los que no son una imagen válida y los que superan el límite devuelven
+400 con un mensaje en español que la interfaz muestra tal cual.
 
 ### `/reporte`
 

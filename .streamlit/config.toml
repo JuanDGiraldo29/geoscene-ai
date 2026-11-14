@@ -1,0 +1,6 @@
+# Límite de subida de la interfaz. Debe coincidir con TAMANO_MAXIMO_MB de
+# compartido/constantes.py, que es el límite que aplica la API. Si no coincide,
+# Streamlit acepta archivos que la API luego rechaza.
+# tests/test_limite_subida.py comprueba que ambos valores sigan iguales.
+[server]
+maxUploadSize = 10

@@ -185,6 +185,12 @@ Luego abre:
 | OpenAPI crudo | <http://127.0.0.1:8000/openapi.json> |
 | Health check | <http://127.0.0.1:8000/health> |
 
+El límite de subida es de **10 MB por imagen**, el mismo en la interfaz y en la
+API. Streamlit lo lee de `.streamlit/config.toml` (`server.maxUploadSize = 10`)
+y la API de `TAMANO_MAXIMO_MB` en `compartido/constantes.py`; las pruebas
+comprueban que no se desincronicen. Las imágenes de EuroSAT pesan unos pocos
+kilobytes, así que el límite solo protege contra archivos enormes por error.
+
 Si la API vive en otro puerto, la interfaz lo acepta con `GEOSCENE_API_URL`:
 
 **macOS / Linux**
@@ -217,9 +223,10 @@ sistema.
 python -m pytest -q
 ```
 
-Deben pasar **33 pruebas**. `tests/test_modelo_referencia.py` certifica que el
+Deben pasar **38 pruebas**. `tests/test_modelo_referencia.py` certifica que el
 checkpoint versionado sigue siendo el modelo de referencia (SHA-256,
-arquitectura, época, umbral y número de parámetros).
+arquitectura, época, umbral y número de parámetros). `tests/test_limite_subida.py`
+certifica que la interfaz y la API anuncian y aplican el mismo límite de subida.
 
 ### Si quieres reproducir el entrenamiento
 
@@ -447,6 +454,9 @@ umbral y SHA-256). Estado actual: **33 pruebas aprobadas**.
   un umbral ya validado.
 - **El modo mock existe para desarrollar.** No debe presentarse como resultado
   del modelo.
+- **Límite de subida: 10 MB por imagen.** La interfaz y la API aplican el mismo
+  valor (`.streamlit/config.toml` y `compartido/constantes.py`). Antes Streamlit
+  anunciaba 200 MB por defecto mientras la API rechazaba a partir de 10 MB.
 
 ## Para la ficha ejecutiva
 

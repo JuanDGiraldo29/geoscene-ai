@@ -11,12 +11,10 @@ import warnings
 import torch
 from PIL import Image, UnidentifiedImageError
 
-from compartido.constantes import RUTA_MODELO
+from compartido.constantes import RUTA_MODELO, TAMANO_MAXIMO_BYTES, TAMANO_MAXIMO_MB
 from compartido.contrato import ClasificadorMock, leer_checkpoint
 from compartido.preprocesamiento import crear_transformacion
 from modelo.red import GeoSceneCNN
-
-TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 class ArchivoInvalidoError(ValueError):
@@ -28,7 +26,7 @@ def cargar_imagen(contenido: bytes) -> Image.Image:
     if not contenido:
         raise ArchivoInvalidoError("El archivo está vacío.")
     if len(contenido) > TAMANO_MAXIMO_BYTES:
-        raise ArchivoInvalidoError("El archivo pesa más de 10 MB.")
+        raise ArchivoInvalidoError(f"El archivo pesa más de {TAMANO_MAXIMO_MB} MB.")
 
     try:
         imagen = Image.open(io.BytesIO(contenido))

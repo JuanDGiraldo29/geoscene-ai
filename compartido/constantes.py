@@ -29,6 +29,13 @@ IMG_SIZE = 32
 SEED = 42
 POR_CLASE = {"train": 500, "val": 100, "test": 100}
 
+# Límite de subida COMPARTIDO por la interfaz y la API. La interfaz lo lee de
+# aquí y Streamlit lo anuncia en el selector de archivos con el valor de
+# .streamlit/config.toml (server.maxUploadSize). Si cambia uno, cambia el otro:
+# tests/test_limite_subida.py verifica que sigan iguales.
+TAMANO_MAXIMO_MB = 10
+TAMANO_MAXIMO_BYTES = TAMANO_MAXIMO_MB * 1024 * 1024
+
 FUNCION_PERDIDA = "CrossEntropyLoss"
 OPTIMIZADOR = "Adam"
 PLAN_LR = "constante (sin scheduler)"

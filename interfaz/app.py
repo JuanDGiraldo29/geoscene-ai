@@ -1,9 +1,19 @@
+import sys
 import time
+from pathlib import Path
 
 import streamlit as st
 
+# Streamlit ejecuta interfaz/app.py con su propia carpeta en sys.path, no la
+# raíz del repositorio. El límite de subida vive en compartido/constantes.py,
+# que es el mismo que aplica la API.
+RAIZ = Path(__file__).resolve().parent.parent
+if str(RAIZ) not in sys.path:
+    sys.path.insert(0, str(RAIZ))
+
 import cliente
 import ui
+from compartido.constantes import TAMANO_MAXIMO_BYTES, TAMANO_MAXIMO_MB
 
 st.set_page_config(page_title="GeoScene AI", page_icon="🛰️", layout="wide",
                    initial_sidebar_state="expanded")
@@ -66,7 +76,19 @@ st.title("Clasificación de imágenes satelitales")
 st.caption("Sugiere el tipo de superficie de una imagen satelital. Tú decides si la sugerencia es correcta.")
 st.markdown(ui.aviso(aviso), unsafe_allow_html=True)
 
-archivo = st.file_uploader("Sube una imagen satelital", key=f"subida_{st.session_state.clave_subida}")
+archivo = st.file_uploader(
+    "Sube una imagen satelital",
+    key=f"subida_{st.session_state.clave_subida}",
+    help=f"Máximo {TAMANO_MAXIMO_MB} MB por imagen (JPG o PNG). La API aplica el mismo límite.",
+)
+
+if archivo is not None and archivo.size > TAMANO_MAXIMO_BYTES:
+    pesa_mb = archivo.size / (1024 * 1024)
+    st.error(
+        f"La imagen pesa {pesa_mb:.1f} MB y el máximo es {TAMANO_MAXIMO_MB} MB. "
+        "Comprímela o recórtala antes de subirla."
+    )
+    st.stop()
 
 paso = 3 if st.session_state.prediccion else (2 if archivo is not None else 1)
 st.markdown(ui.franja(paso), unsafe_allow_html=True)
