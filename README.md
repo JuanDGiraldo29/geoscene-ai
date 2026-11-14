@@ -75,16 +75,83 @@ barra lateral siempre indican el modo activo.
 
 ## Cómo correrlo
 
-Requisitos: Python 3.10 o superior. Desde la raíz del repositorio:
+Esta guía asume que ya descargaste el repositorio y que estás en la rama
+**`integracion/completa`**, que es la que contiene el modelo de referencia
+(CNN 32/64 canales, 545.098 parámetros, sin `BatchNorm2d`) y su checkpoint
+versionado. Todos los comandos se ejecutan **desde la raíz del repositorio**, la
+carpeta que contiene `api/`, `modelo/`, `interfaz/` y `requirements.txt`.
+
+### 0. Ubicarse en la rama correcta
+
+Si clonas desde GitHub:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+git clone https://github.com/JuanDGiraldo29/geoscene-ai.git
+cd geoscene-ai
+git checkout integracion/completa
 ```
 
-El repositorio ya incluye el checkpoint y los índices de particiones. Para
-levantar la aplicación hacen falta dos terminales.
+Si descargas un ZIP, selecciona la rama `integracion/completa` antes de
+descargarlo. Requisitos: **Python 3.10 o superior**. Comprueba la versión con
+`python3 --version` en macOS/Linux o `python --version` en Windows. En Windows,
+si `python` no existe, usa `py -3` en los comandos.
+
+### 1. Crear y activar el entorno virtual
+
+**macOS / Linux**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+**Windows · PowerShell**
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+**Windows · CMD**
+
+```bat
+py -3 -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Si PowerShell bloquea `Activate.ps1`, ejecuta una vez
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. En Git Bash también
+funciona `source .venv/Scripts/activate`.
+
+> **Importante:** con el venv activo usa `python`, no `python3`. Si aparece
+> `No module named uvicorn`, el entorno no está activo. Sin activarlo puedes
+> invocar el intérprete directamente:
+>
+> - macOS/Linux: `.venv/bin/python -m uvicorn api.main:app --host 127.0.0.1 --port 8000`
+> - Windows: `.venv\Scripts\python -m uvicorn api.main:app --host 127.0.0.1 --port 8000`
+
+### 2. (Opcional) Descargar el dataset para métricas en vivo
+
+El checkpoint y `splits/indices.json` ya vienen en el repositorio, así que la
+interfaz y `/predict` funcionan sin descargar el dataset. Solo si quieres que
+`/reporte` y `/panel` calculen las métricas en vivo necesitas EuroSAT:
+
+```bash
+python -m modelo.datos
+```
+
+La primera vez torchvision descarga el dataset en `data/`. Si
+`splits/indices.json` ya existe, no se rehace.
+
+### 3. Levantar la aplicación (dos terminales)
+
+En **ambas** terminales activa el venv y ubícate en la raíz del repositorio.
 
 **Terminal 1 · API**
 
@@ -98,6 +165,16 @@ python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 python -m streamlit run interfaz/app.py --server.port 8501 --server.address 127.0.0.1
 ```
 
+Comprueba que la API está en modo real:
+
+```bash
+curl http://127.0.0.1:8000/health
+# {"status":"ok","modo":"real"}
+```
+
+En Windows PowerShell `curl` es un alias de `Invoke-WebRequest`; usa
+`curl.exe` o abre la URL en el navegador.
+
 Luego abre:
 
 | Recurso | URL |
@@ -108,16 +185,48 @@ Luego abre:
 | OpenAPI crudo | <http://127.0.0.1:8000/openapi.json> |
 | Health check | <http://127.0.0.1:8000/health> |
 
-Si la API vive en otro puerto, la interfaz lo acepta con
-`GEOSCENE_API_URL=http://127.0.0.1:9000`. Los orígenes permitidos para clientes
-de navegador se configuran con `GEOSCENE_ORIGENES`.
+Si la API vive en otro puerto, la interfaz lo acepta con `GEOSCENE_API_URL`:
+
+**macOS / Linux**
+
+```bash
+GEOSCENE_API_URL=http://127.0.0.1:9000 python -m streamlit run interfaz/app.py
+```
+
+**Windows · PowerShell**
+
+```powershell
+$env:GEOSCENE_API_URL = "http://127.0.0.1:9000"
+python -m streamlit run interfaz/app.py
+```
+
+**Windows · CMD**
+
+```bat
+set GEOSCENE_API_URL=http://127.0.0.1:9000
+python -m streamlit run interfaz/app.py
+```
+
+Los orígenes permitidos para clientes de navegador se configuran con
+`GEOSCENE_ORIGENES`, usando la misma sintaxis de variable de entorno de cada
+sistema.
+
+### 4. Verificación rápida
+
+```bash
+python -m pytest -q
+```
+
+Deben pasar **33 pruebas**. `tests/test_modelo_referencia.py` certifica que el
+checkpoint versionado sigue siendo el modelo de referencia (SHA-256,
+arquitectura, época, umbral y número de parámetros).
 
 ### Si quieres reproducir el entrenamiento
 
 El dataset se descarga con torchvision la primera vez. Los pasos son:
 
 ```bash
-python -m modelo.datos                 # crea data/ y splits/indices.json
+python -m modelo.datos                 # descarga data/ y conserva splits/indices.json
 python -m modelo.entrenar              # entrena y guarda models/geoscene_cnn.pt
 python -m modelo.evaluar --split val   # calibra el umbral de revisión
 python -m modelo.evaluar --split test  # evaluación final, una sola vez
@@ -127,6 +236,10 @@ La validación elige época y umbral; test solo se usa al final. El reporte lee
 los hiperparámetros efectivos del checkpoint, no de valores escritos a mano. Si
 un campo no está en el checkpoint, se toma de `compartido/constantes.py` y la
 procedencia indica exactamente cuál fue la fuente.
+
+> Al reentrenar se sobrescribe `models/geoscene_cnn.pt`. Eso es esperado, pero
+> invalida la huella certificada: actualiza el SHA-256 del README y ejecuta de
+> nuevo las pruebas antes de volver a commitear el checkpoint.
 
 ## Lo que se añadió en esta versión
 
